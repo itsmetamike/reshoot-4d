@@ -1,0 +1,204 @@
+{
+ "1": {
+  "inputs": {
+   "video": "night_railing_woman.mp4",
+   "name": "",
+   "start_time": 0,
+   "end_time": 4,
+   "mode": "4DGS splat (train)",
+   "views": 24,
+   "train_steps": 15000,
+   "subject": "largest"
+  },
+  "class_type": "Sam3dbxCaptureSubject",
+  "_meta": {
+   "title": "Capture"
+  }
+ },
+ "2": {
+  "inputs": {
+   "frame_rate": 24,
+   "loop_count": 0,
+   "filename_prefix": "reshoot4d/trimmed",
+   "format": "video/h264-mp4",
+   "pix_fmt": "yuv420p",
+   "crf": 19,
+   "save_metadata": true,
+   "trim_to_audio": false,
+   "pingpong": false,
+   "save_output": false,
+   "images": [
+    "1",
+    3
+   ]
+  },
+  "class_type": "VHS_VideoCombine",
+  "_meta": {
+   "title": "Trimmed clip"
+  }
+ },
+ "3": {
+  "inputs": {
+   "source": [
+    "1",
+    2
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Capture info"
+  }
+ },
+ "4": {
+  "inputs": {
+   "images": [
+    "1",
+    1
+   ]
+  },
+  "class_type": "PreviewImage",
+  "_meta": {
+   "title": "Generated views"
+  }
+ },
+ "5": {
+  "inputs": {
+   "frame_rate": 24,
+   "loop_count": 0,
+   "filename_prefix": "reshoot4d/splat",
+   "format": "video/h264-mp4",
+   "pix_fmt": "yuv420p",
+   "crf": 19,
+   "save_metadata": true,
+   "trim_to_audio": false,
+   "pingpong": false,
+   "save_output": false,
+   "images": [
+    "1",
+    4
+   ]
+  },
+  "class_type": "VHS_VideoCombine",
+  "_meta": {
+   "title": "Splat preview"
+  }
+ },
+ "10": {
+  "inputs": {
+   "capture": "(no captures yet)",
+   "mode": "4DGS (splat)",
+   "director_state": "{\"duration\":4,\"fps\":24,\"shake\":0,\"bpm\":0,\"first_beat\":0,\"keys\":[],\"scene_mode\":\"auto\",\"speed\":1,\"scene_end\":\"hold\",\"path\":\"orbit\",\"shot_ease\":\"smooth\",\"follow\":false,\"space_dir\":\"\"}\n",
+   "🎬 Open Virtual Camera": null,
+   "📂 Import camera path (.json)": null,
+   "train_dir": [
+    "1",
+    0
+   ]
+  },
+  "class_type": "Sam3dbxCameraDirector",
+  "_meta": {
+   "title": "Virtual Camera"
+  }
+ },
+ "11": {
+  "inputs": {
+   "source": [
+    "10",
+    2
+   ]
+  },
+  "class_type": "PreviewAny",
+  "_meta": {
+   "title": "Move info"
+  }
+ },
+ "20": {
+  "inputs": {
+   "resolution": "480p",
+   "steps": 50,
+   "seed": 0,
+   "prompt": "",
+   "cfg": 5,
+   "train_dir": [
+    "10",
+    0
+   ],
+   "camera_path": [
+    "10",
+    1
+   ]
+  },
+  "class_type": "Sam3dbxRetake",
+  "_meta": {
+   "title": "Retake"
+  }
+ },
+ "21": {
+  "inputs": {
+   "frame_rate": [
+    "20",
+    2
+   ],
+   "loop_count": 0,
+   "filename_prefix": "reshoot4d/retake",
+   "format": "video/h264-mp4",
+   "pix_fmt": "yuv420p",
+   "crf": 19,
+   "save_metadata": true,
+   "trim_to_audio": false,
+   "pingpong": false,
+   "save_output": true,
+   "images": [
+    "20",
+    0
+   ]
+  },
+  "class_type": "VHS_VideoCombine",
+  "_meta": {
+   "title": "Save retake"
+  }
+ },
+ "30": {
+  "inputs": {
+   "seed": 11,
+   "start_strength": 0.35,
+   "control_strength": 0.6,
+   "control_lora_strength": 0.7,
+   "first_frame_strength": 0.9,
+   "detailer": true,
+   "retake": [
+    "20",
+    1
+   ]
+  },
+  "class_type": "Sam3dbxRetakePhotoreal",
+  "_meta": {
+   "title": "Photoreal Pass"
+  }
+ },
+ "31": {
+  "inputs": {
+   "frame_rate": [
+    "30",
+    1
+   ],
+   "loop_count": 0,
+   "filename_prefix": "reshoot4d/photoreal",
+   "format": "video/h264-mp4",
+   "pix_fmt": "yuv420p",
+   "crf": 19,
+   "save_metadata": true,
+   "trim_to_audio": false,
+   "pingpong": false,
+   "save_output": true,
+   "images": [
+    "30",
+    0
+   ]
+  },
+  "class_type": "VHS_VideoCombine",
+  "_meta": {
+   "title": "Save final shot"
+  }
+ }
+}

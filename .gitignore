@@ -1,0 +1,29 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Machine configuration and credentials
+config.local.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Generated jobs, captures and outputs
+/output/
+/outputs/
+/out/
+/cache/
+*.mp4
+!/site/media/*.mp4
+
+# Private development notes and historical drafts
+CODEX_*.md
+README_BEFORE_RETAKE*
+
+# Desktop metadata
+.DS_Store

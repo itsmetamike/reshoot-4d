@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Reshoot any video in 4D. A 4D camera editor inside ComfyUI, running locally on open weights.">
+<meta name="color-scheme" content="dark">
+<title>Reshoot 4D | Reshoot any video in 4D.</title>
+<link rel="icon" type="image/svg+xml" href="media/brand/favicon.svg">
+<meta name="theme-color" content="#000000">
+<link rel="preload" href="media/brand/Unbounded-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="media/brand/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><div class="wrap header-inner">
+<a class="brand" href="#" aria-label="Reshoot 4D home"><img src="media/brand/reshoot4d_wordmark_t.svg" width="1728" height="172" alt="Reshoot 4D"></a>
+<nav aria-label="Main"><a href="#workflow">How it works</a><a href="#editor">Editor</a><a href="#results">Results</a><a href="#install">Install</a><a class="nav-cta" id="github-link" href="https://github.com/itsmetamike/reshoot-4d">GitHub</a></nav>
+</div></header>
+<main id="main">
+<section class="hero" aria-label="Reshoot 4D">
+<div class="hero-frame">
+<video id="hero-video" autoplay muted loop playsinline preload="auto" poster="media/explainer.jpg" aria-label="Reshoot 4D in 35 seconds: the claims, the 4D camera editor opening from its ComfyUI node, the four nodes and results"><source src="media/explainer.mp4" type="video/mp4">Your browser cannot play this video.</video>
+</div>
+<div class="hero-copy wrap">
+<div class="hero-text"><h1>Reshoot any video in 4D, inside ComfyUI.</h1><ul class="badges" aria-label="Key facts"><li>Runs locally</li><li>Open weights</li><li>Every step a ComfyUI node</li><li class="ltx">Final frames by LTX 2.3</li></ul>
+</div>
+<div class="actions"><a class="button" href="#workflow">How it works</a><a class="button secondary" href="#install">Install</a><button id="motion-toggle" type="button" aria-pressed="false">Pause</button></div>
+</div>
+</section>
+
+<section id="workflow" class="wrap section" aria-labelledby="workflow-title">
+<h2 id="workflow-title">How it works</h2>
+<div class="steps" role="tablist" aria-label="Workflow steps">
+<button class="step-tab" role="tab" aria-selected="true" data-step="0"><span>01</span> Capture</button>
+<button class="step-tab" role="tab" aria-selected="false" data-step="1"><span>02</span> Virtual Camera</button>
+<button class="step-tab" role="tab" aria-selected="false" data-step="2"><span>03</span> Retake</button>
+<button class="step-tab" role="tab" aria-selected="false" data-step="3"><span>04</span> Photoreal Pass · LTX 2.3</button>
+</div>
+<div class="step-panel" role="tabpanel">
+<div class="step-media"><video id="step-video" autoplay muted loop playsinline preload="auto" poster="media/step_capture.jpg"><source src="media/step_capture.mp4" type="video/mp4"></video></div>
+<p id="step-text"></p>
+</div>
+</section>
+
+<section id="why-4d" class="wrap section prose" aria-labelledby="why-title">
+<h2 id="why-title">Why 4D</h2>
+<p>You direct inside a 4D capture of the real scene: real scale, the real source camera path, the person's real motion and timing. The retake is driven by that geometry, and the pixels come from reshooting the real footage, so the person, place and motion stay theirs. LTX 2.3 renders every final frame. The capture is also a reusable asset, ready for video models that take 3D conditioning.</p>
+</section>
+
+<section id="editor" class="wrap section" aria-labelledby="editor-title">
+<h2 id="editor-title">Inside ComfyUI</h2>
+<div class="stack">
+<figure><div class="video-shell"><video autoplay muted loop playsinline preload="auto" poster="media/walkthrough.jpg" aria-label="Walkthrough: the workflow, the 4D camera editor, Run and the final shot"><source src="media/walkthrough.mp4" type="video/mp4"></video></div><figcaption>The workflow and the 4D camera editor, from video to final shot</figcaption></figure>
+</div>
+<ul class="feature-grid" aria-label="Editor features">
+<li><b>Camera keys</b><span>Key the camera's position, aim and roll at any moment. Paths between keys run as smooth orbits or splines.</span></li>
+<li><b>Camera view and editor view</b><span>Look through the shot camera, or press C to step outside and see the capture, the path and every key.</span></li>
+<li><b>Blender-style view gizmo</b><span>Click a dot for top, front or side, or drag it to orbit around the 4D capture.</span></li>
+<li><b>A timeline built for shots</b><span>Play, shuttle with J / K / L, step frames and jump between keys. Shift-select keys to move, rotate or retime them together.</span></li>
+<li><b>Presets</b><span>Start from an arc, push, crane, orbit or bullet-time move, then edit the keys.</span></li>
+<li><b>Portable camera paths</b><span>Paths export relative to the source camera, so a move made on one capture replays on another.</span></li>
+</ul>
+</section>
+
+<section id="results" class="wrap section" aria-labelledby="results-title">
+<h2 id="results-title">Results</h2>
+<div class="steps small" role="tablist" aria-label="Examples">
+<button class="cmp-tab" role="tab" aria-selected="true" data-cmp="1">Example 1</button>
+<button class="cmp-tab" role="tab" aria-selected="false" data-cmp="2">Example 2</button>
+<button class="cmp-tab" role="tab" aria-selected="false" data-cmp="3">Example 3</button>
+<button class="cmp-tab" role="tab" aria-selected="false" data-cmp="4">Example 4</button>
+<button class="cmp-tab" role="tab" aria-selected="false" data-cmp="5">Example 5</button>
+<button class="cmp-tab" role="tab" aria-selected="false" data-cmp="6">Example 6</button>
+</div>
+<div class="video-shell" id="cmp"><video autoplay muted loop playsinline preload="auto" aria-label="Source video next to three reshoots, each with its camera path"></video></div>
+<p class="note">Each example: the source video, then three new camera moves. The top view on each reshoot shows the path; the readouts show how far it moves.</p>
+</section>
+
+<section id="limitations" class="wrap section" aria-labelledby="limits-title">
+<h2 id="limits-title">Limitations</h2>
+<div class="limits">
+<figure><div class="video-shell"><video autoplay muted loop playsinline preload="auto" poster="media/limits_large_moves.jpg" aria-label="Six large camera moves, one per example, showing distortion"><source src="media/limits_large_moves.mp4" type="video/mp4"></video></div>
+<figcaption><b>Large moves distort.</b> Smooth paths that travel far from the source camera can distort the person and the setting, so the examples use small moves (about 20° of swing and 10° of rise). We expect this range to grow with more compute and time than this release had.</figcaption></figure>
+<div class="two-col">
+<figure><div class="video-shell"><img src="media/limits_face.jpg" alt="Example 5: source and reshoot side by side; her eyes are open in the reshoot" loading="lazy"></div>
+<figcaption><b>Small face and timing drift.</b> The reshoot follows the source performance closely, but an expression, a blink or a beat of timing can drift. In Example 5 her eyes are open in the reshoot.</figcaption></figure>
+<figure><div class="video-shell"><img src="media/limits_world.jpg" alt="Example 4: source and two reshoots; the view through the window differs" loading="lazy"></div>
+<figcaption><b>No fixed world.</b> There is no 3D world built and composited behind the person. Each reshoot regenerates what the source camera never saw, so off-camera objects can differ between angles. In Example 4 the view through the window changes.</figcaption></figure>
+</div>
+</div>
+</section>
+
+<section id="install" class="wrap section" aria-labelledby="install-title">
+<h2 id="install-title">Install</h2>
+<ol class="install-steps">
+<li>Set up Capture and its models on a CUDA machine.</li>
+<li>Add Reshoot 4D to <code>ComfyUI/custom_nodes/</code>.</li>
+<li>Install ReDirector and LTX 2.3, then restart ComfyUI.</li>
+</ol>
+<p class="links"><a href="../docs/INSTALL.md" data-repo-path="/blob/main/docs/INSTALL.md">Installation guide →</a><a href="../docs/MODELS_AND_LICENSES.md" data-repo-path="/blob/main/docs/MODELS_AND_LICENSES.md">Models and licences →</a><a href="../docs/CREDITS.md" data-repo-path="/blob/main/docs/CREDITS.md">Credits →</a></p>
+<p class="fine">Copyright (C) 2026 itsmetamike. AGPL-3.0. Models keep their own licences; see the model guide. Built with assistance from Claude Code and Codex.</p>
+</section>
+</main>
+<footer class="wrap"><a class="maker" href="https://github.com/itsmetamike" aria-label="A brutus labs project by itsmetamike, made locally on brutus"><img src="media/brand/brutus_carved.png" width="600" height="600" alt="brutus"><span>labs · itsmetamike · made locally on brutus</span></a><a href="#">Back to top ↑</a></footer>
+<script>
+const REPO_URL = document.querySelector('#github-link').href.replace(/\/$/, '');
+document.querySelectorAll('[data-repo-path]').forEach(a => { a.href = REPO_URL + a.dataset.repoPath; });
+
+// workflow steps: one player, four tabs
+const STEPS = [
+  ['step_capture', 'Turns a video into a 4D capture of the person in their setting and solves the source camera.'],
+  ['step_camera', "Every step is a ComfyUI node. The 4D camera editor is the Virtual Camera node's own panel."],
+  ['step_retake', 'ReDirector reshoots the source video along your camera path.'],
+  ['step_photoreal', 'LTX 2.3 renders every final frame. It uses the retake, its edges and the real first frame as guidance.'],
+];
+const stepVideo = document.querySelector('#step-video'), stepText = document.querySelector('#step-text');
+function showStep(i) {
+  document.querySelectorAll('.step-tab').forEach((b, k) => b.setAttribute('aria-selected', String(k === i)));
+  stepVideo.poster = `media/${STEPS[i][0]}.jpg`; stepVideo.src = `media/${STEPS[i][0]}.mp4`; stepText.textContent = STEPS[i][1];
+  if (!paused) stepVideo.play().catch(() => {});
+}
+document.querySelectorAll('.step-tab').forEach(b => b.addEventListener('click', () => showStep(+b.dataset.step)));
+
+// results: one player, one example at a time
+const cmpVideo = document.querySelector('#cmp video');
+function showCmp(n) {
+  document.querySelectorAll('.cmp-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.cmp === String(n))));
+  cmpVideo.poster = `media/example_${n}.jpg`; cmpVideo.src = `media/example_${n}.mp4`; if (!paused) cmpVideo.play().catch(() => {});
+}
+document.querySelectorAll('.cmp-tab').forEach(b => b.addEventListener('click', () => showCmp(b.dataset.cmp)));
+
+// previews play while on screen; one button pauses everything
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const motionButton = document.querySelector('#motion-toggle');
+let paused = reduceMotion.matches;
+const all = () => [...document.querySelectorAll('video')];
+function updateMotion() {
+  motionButton.textContent = paused ? 'Play' : 'Pause'; motionButton.setAttribute('aria-pressed', String(paused));
+  all().forEach(v => { if (paused) v.pause(); else if (v.dataset.visible === 'true') v.play().catch(() => {}); });
+}
+const observer = new IntersectionObserver(es => es.forEach(({ target, isIntersecting }) => {
+  target.dataset.visible = String(isIntersecting);
+  if (!isIntersecting || paused) target.pause(); else target.play().catch(() => {});
+}), { threshold: 0.15 });
+all().forEach(v => observer.observe(v));
+motionButton.addEventListener('click', () => { paused = !paused; updateMotion(); });
+showStep(0); showCmp(1); updateMotion();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+diff --git a/fdanyone/reconstruction/train_worker.py b/fdanyone/reconstruction/train_worker.py
+index 47deca0..4f80fc8 100644
+--- a/fdanyone/reconstruction/train_worker.py
++++ b/fdanyone/reconstruction/train_worker.py
+@@ -79,6 +79,13 @@ def main():
+         render_traj_fps=max(1, round(float(Fraction(manifest['fps'])))),
+         export_ply=False, disable_viewer=True,
+     )
++    # Local hook (sam3dbx comfy nodes, 2026-10-20): JSON Config overrides, e.g. min_duration_frames / lambda_perc / lambda_foreground.
++    import os as _os
++    for _k, _v in json.loads(_os.environ.get("SAM3DBX_TRAIN_OVERRIDES", "{}")).items():
++        if not hasattr(cfg, _k):
++            raise RuntimeError(f"unknown FreeTimeGS Config field {_k}")
++        setattr(cfg, _k, _v)
++        print(f"override {_k}={_v}", flush=True)
+     runner = trainer.FreeTime4DRunner(0, 0, 1, cfg)
+     # Reconstruction uses every generated camera, including the front view.
+     # Training loss is not a held-out or real-world reconstruction benchmark.

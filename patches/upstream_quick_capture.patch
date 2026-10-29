@@ -1,0 +1,45 @@
+diff --git a/fdanyone/pipeline.py b/fdanyone/pipeline.py
+index 124045f..e581bf0 100644
+--- a/fdanyone/pipeline.py
++++ b/fdanyone/pipeline.py
+@@ -337,18 +337,28 @@ def run_pipeline(
+             # provenance is needed from the original full-resolution clip now.
+             clip_info = clip.info
+             del clip
+-            PROGRESS.info("Generating target-view videos", extra={"fraction": 0.45})
+-            generated = generate_views(
+-                conditioning=conditioning,
+-                checkpoint_path=checkpoint,
+-                turbo_lora_path=turbo_lora,
+-                denoising_profile=denoising_profile,
+-                attention_backend=attention_backend,
+-                assets=base_assets,
+-                output_dir=scratch / "generation",
+-                devices=devices,
+-                seed=seed,
+-            )
++            if os.environ.get("SAM3DBX_SKIP_GENERATION"):
++                # Reshoot 4D quick capture: tracking, camera rig and skeletons only. The skeleton renders stand in for the target
++                # views (the retake re-shoots the real footage, so the generated views are not needed)
++                from fdanyone.model.inference import GeneratedViews
++                PROGRESS.info("Skipping view generation (quick capture)", extra={"fraction": 0.45})
++                generated = GeneratedViews(
++                    target_videos=tuple(item.path for item in conditioning.target_skeletons), view_plan=conditioning.view_plan,
++                    denoising_profile=denoising_profile, seed=seed, device=device, attention_backend=attention_backend,
++                    elapsed_seconds={}, stage_peak_vram_bytes={}, peak_vram_allocated_bytes=0, peak_vram_reserved_bytes=0)
++            else:
++                PROGRESS.info("Generating target-view videos", extra={"fraction": 0.45})
++                generated = generate_views(
++                    conditioning=conditioning,
++                    checkpoint_path=checkpoint,
++                    turbo_lora_path=turbo_lora,
++                    denoising_profile=denoising_profile,
++                    attention_backend=attention_backend,
++                    assets=base_assets,
++                    output_dir=scratch / "generation",
++                    devices=devices,
++                    seed=seed,
++                )
+             PROGRESS.info("Saving and validating generated videos", extra={"fraction": 0.92})
+             summary = write_output(
+                 clip=clip_info,
