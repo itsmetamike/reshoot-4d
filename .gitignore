@@ -20,6 +20,7 @@ config.local.json
 /cache/
 *.mp4
 !/site/media/*.mp4
+!/site/demo/data/*.mp4
 
 # Private development notes and historical drafts
 CODEX_*.md
