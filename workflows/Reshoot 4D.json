@@ -1247,7 +1247,9 @@
     0.6,
     0.7,
     0.9,
-    true
+    true,
+    "crossview",
+    0.7
    ],
    "widgets_values_named": {
     "seed": 11,
@@ -1255,7 +1257,9 @@
     "control_strength": 0.6,
     "control_lora_strength": 0.7,
     "first_frame_strength": 0.9,
-    "detailer": true
+    "detailer": true,
+    "pass_type": "crossview",
+    "crossview_start": 0.7
    }
   },
   {
@@ -1619,13 +1623,13 @@
      "version": "7.8",
      "input_ue_unconnectable": {}
     },
-    "text": "## 4. Photoreal Pass\nLTX 2.3 renders every final frame. Portrait output is 1024x1792; landscape output is 1792x1024.\n\n- Uses the retake as video-to-video input with **start_strength 0.35** in the first stage.\n- Uses the retake's edges as Canny control and the real first frame as a start guide.\n- Two stages, with the detailer LoRA in the last one.\n\nThe final shot saves to output/reshoot4d/."
+    "text": "## 4. Photoreal Pass\nLTX 2.3 renders every final frame. Portrait output is 1024x1792; landscape output is 1792x1024.\n\n- **crossview** (default): Cseti's CrossView-Warp IC-LoRA. A depth warp of the real video along your path and the real video itself guide LTX.\n- Starts from the retake at **crossview_start 0.7**. Two stages, with the detailer LoRA in the last one.\n- **union control** keeps the earlier pass: the retake's Canny edges and the real first frame as guides (start_strength 0.35).\n\nThe final shot saves to output/reshoot4d/."
    },
    "widgets_values": [
-    "## 4. Photoreal Pass\nLTX 2.3 renders every final frame. Portrait output is 1024x1792; landscape output is 1792x1024.\n\n- Uses the retake as video-to-video input with **start_strength 0.35** in the first stage.\n- Uses the retake's edges as Canny control and the real first frame as a start guide.\n- Two stages, with the detailer LoRA in the last one.\n\nThe final shot saves to output/reshoot4d/."
+    "## 4. Photoreal Pass\nLTX 2.3 renders every final frame. Portrait output is 1024x1792; landscape output is 1792x1024.\n\n- **crossview** (default): Cseti's CrossView-Warp IC-LoRA. A depth warp of the real video along your path and the real video itself guide LTX.\n- Starts from the retake at **crossview_start 0.7**. Two stages, with the detailer LoRA in the last one.\n- **union control** keeps the earlier pass: the retake's Canny edges and the real first frame as guides (start_strength 0.35).\n\nThe final shot saves to output/reshoot4d/."
    ],
    "widgets_values_named": {
-    "text": "## 4. Photoreal Pass\nLTX 2.3 renders every final frame. Portrait output is 1024x1792; landscape output is 1792x1024.\n\n- Uses the retake as video-to-video input with **start_strength 0.35** in the first stage.\n- Uses the retake's edges as Canny control and the real first frame as a start guide.\n- Two stages, with the detailer LoRA in the last one.\n\nThe final shot saves to output/reshoot4d/."
+    "text": "## 4. Photoreal Pass\nLTX 2.3 renders every final frame. Portrait output is 1024x1792; landscape output is 1792x1024.\n\n- **crossview** (default): Cseti's CrossView-Warp IC-LoRA. A depth warp of the real video along your path and the real video itself guide LTX.\n- Starts from the retake at **crossview_start 0.7**. Two stages, with the detailer LoRA in the last one.\n- **union control** keeps the earlier pass: the retake's Canny edges and the real first frame as guides (start_strength 0.35).\n\nThe final shot saves to output/reshoot4d/."
    },
    "color": "#2a2a2a",
    "bgcolor": "#141414"

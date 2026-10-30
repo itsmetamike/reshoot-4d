@@ -150,7 +150,7 @@ class Sam3dbxCaptureSubject:
             # the real length of the clip: the Director plays the 121 frames back over this, so shots run in real time
             (run / "clip.json").write_text(json.dumps({"video": src_in, "start": start_time, "end": end, "seconds": secs, "source_fps": src_fps, "key": key}))
             _free_comfy()
-            env = _env("3090"); env["PATH"] = f"{ROOT / 'uvenv' / 'bin'}:{env['PATH']}"
+            env = _env("big"); env["PATH"] = f"{ROOT / 'uvenv' / 'bin'}:{env['PATH']}"
             if subject != "largest":
                 env["SAM3DBX_SUBJECT"] = subject   # patches/upstream_subject_pick.patch
             if quick:
@@ -168,8 +168,8 @@ class Sam3dbxCaptureSubject:
         if splat_mode and not any(sp.glob("ckpts/ckpt_*.pt")):
             _free_comfy()
             _sh([GEN_PY, "train_4dgs.py", f"--result_dir={run / 'adapt'}", f"--output_dir={sp}", "--gpu_id=0", f"--steps={train_steps}"],
-                log, _env("3090", train=True), ROOT / "repo")
-            _sh([TRAIN_PY, NODES_DIR / "dump_points.py", f"--train_dir={sp}"], log, {**_env("3090", train=True), "CUDA_VISIBLE_DEVICES": ""}, NODES_DIR)
+                log, _env("big", train=True), ROOT / "repo")
+            _sh([TRAIN_PY, NODES_DIR / "dump_points.py", f"--train_dir={sp}"], log, {**_env("big", train=True), "CUDA_VISIBLE_DEVICES": ""}, NODES_DIR)
         L.ensure(sp if splat_mode else cap)   # the clip's setting and the source camera's real path (DA3): shots work in the setting's frame
         try:   # Virtual Camera preview: the real setting around her, and real colours on a quick capture's mannequin
             from . import preview_extras

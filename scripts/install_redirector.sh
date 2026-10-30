@@ -1,8 +1,8 @@
 #!/bin/bash
 # Install ReDirector (Apache-2.0) for the Retake node: its own venv (torch 2.8 + DiffSynth) and ~20 GB of weights.
-# usage: scripts/install_redirector.sh [target dir, default $SAM3DBX_ROOT/redirector or /data/sam3dbx/redirector]
+# usage: scripts/install_redirector.sh [target dir, default $SAM3DBX_ROOT/redirector or ~/reshoot4d/redirector]
 set -euo pipefail
-T=${1:-${SAM3DBX_ROOT:-/data/sam3dbx}/redirector}
+T=${1:-${SAM3DBX_ROOT:-$HOME/reshoot4d}/redirector}
 [ -d "$T/.git" ] || git clone https://github.com/byeongjun-park/ReDirector.git "$T"
 cd "$T"
 M=models/PAI/Wan2.1-Fun-V1.1-1.3B-Control-Camera; B=https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera/resolve/main

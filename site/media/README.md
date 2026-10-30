@@ -8,13 +8,13 @@ Videos are silent H.264 MP4s with matching JPEG posters. The page autoplays visi
 
 | Video | Poster | Content |
 | --- | --- | --- |
-| `explainer.mp4` | `explainer.jpg` | 33.4-second, 1920x1080 explainer (fframes, `hero/explainer` in the build folder). |
+| `explainer.mp4` | `explainer.jpg` | 35-second, 1920x1080 explainer, made with fframes. |
 | `step_capture.mp4` | `step_capture.jpg` | Four-second portrait capture preview. |
 | `step_camera.mp4` | `step_camera.jpg` | 18.77-second editor recording; 4D camera editor recording. |
 | `step_retake.mp4` | `step_retake.jpg` | Four-second retake preview; Example 1 retake. |
 | `step_photoreal.mp4` | `step_photoreal.jpg` | Four-second final preview; Example 1 final. |
 | `walkthrough.mp4` | `walkthrough.jpg` | 71-second, 1920x1080 walkthrough: workflow, 4D camera editor, Run, final shot. |
-| `workflow_graph.jpg` | — | Current Reshoot 4D workflow graph (1920x1080), used by the repo README. |
+| `workflow_graph.jpg` | none | Current Reshoot 4D workflow graph (1920x1080), used by the repo README. |
 
 Use readable UI recordings and matching posters. Check that captions describe the actual footage and review portrait media on desktop and mobile.
 
@@ -22,7 +22,7 @@ The README uses `workflow_graph.jpg`; the page shows the graph in `walkthrough.m
 
 ## Results
 
-Six examples, each the source video next to three reshoots (M01 slow arc right, M02 arc left and rise, M03 gentle push) with a top-view camera path and live readouts. Built with `hero/minimal_review/compare_multi.py`.
+Six examples, each the source video next to three reshoots (M01 slow arc right, M02 arc left and rise, M03 gentle push) with a top-view camera path and live readouts. Every reshoot uses the default Photoreal Pass (CrossView + detailer). Built with `hero/minimal_review/compare_multi.py`.
 
 | Video | Poster | Content |
 | --- | --- | --- |
@@ -37,9 +37,8 @@ Six examples, each the source video next to three reshoots (M01 slow arc right, 
 
 | File | Content |
 | --- | --- |
-| `limits_large_moves.mp4` / `.jpg` | One smooth large move per example with the source inset and peak swing, rise and distance. |
-| `limits_face.jpg` | Example 5: source and reshoot; her eyes are open in the reshoot. |
 | `limits_world.jpg` | Example 4: source and two reshoots; the view through the window differs. |
+| `limits_fast_motion.jpg` | Example 6: source and reshoot mid-spin; her face smears in the reshoot. |
 
 See [Credits](../../docs/CREDITS.md) for footage attribution.
 

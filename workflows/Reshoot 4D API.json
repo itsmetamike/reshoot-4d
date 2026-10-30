@@ -169,7 +169,9 @@
    "retake": [
     "20",
     1
-   ]
+   ],
+   "pass_type": "crossview",
+   "crossview_start": 0.7
   },
   "class_type": "Sam3dbxRetakePhotoreal",
   "_meta": {

@@ -8,12 +8,13 @@ Reshoot 4D combines a ComfyUI workflow and a 4D camera editor. itsmetamike's con
 | [ReDirector](https://github.com/byeongjun-park/ReDirector) | Source-video and source/target-camera conditioned retakes. |
 | [Wan2.1-Fun Control-Camera](https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera) | Base video model used by ReDirector. |
 | [LTX 2.3](https://huggingface.co/Lightricks/LTX-2.3) | Final video synthesis; union and detailer adapters retain their own release terms. |
+| [CrossView-Warp IC-LoRA](https://huggingface.co/Cseti/LTX2.3-22B_IC-LoRA-CrossView-Warp_v2) and [ComfyUI-CrossViewWarp](https://github.com/cseti007/ComfyUI-CrossViewWarp) by Cseti | The default Photoreal Pass: LTX 2.3 guided by a depth warp of the real video along the camera path. Training-asset provenance is in its [ATTRIBUTION.md](https://huggingface.co/Cseti/LTX2.3-22B_IC-LoRA-CrossView-Warp_v2/blob/main/ATTRIBUTION.md). |
 | [4DAnyone](https://github.com/ant-research/4DAnyone) | Generated multiview capture preparation. |
 | [sam3dbx4danyone](https://github.com/OpsiClear-4DGS/sam3dbx4danyone) | Capture adaptation and training tooling. |
 | [FreeTimeGsVanilla](https://github.com/OpsiClear-4DGS/FreeTimeGsVanilla), [gsplat](https://github.com/nerfstudio-project/gsplat) | Moving splat asset, training and preview rendering. |
 | [GVHMR](https://github.com/zju3dv/GVHMR), [SMPL-X](https://smpl-x.is.tue.mpg.de/modellicense.html) | Body tracking/geometry used in current capture and camera registration. |
 | [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) | Foreground preprocessing. |
-| [Depth Anything 3 Base](https://huggingface.co/depth-anything/DA3-BASE), [MoGe](https://github.com/microsoft/MoGe) | Scene geometry and setting registration support. |
+| [Depth Anything 3 Base](https://huggingface.co/depth-anything/DA3-BASE), [MoGe](https://github.com/microsoft/MoGe) | Scene geometry and setting registration support; MoGe-2 also gives CrossView its depth. |
 | [Qwen3-VL](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct), [Gemma 3](https://huggingface.co/google/gemma-3-12b-it) | Automatic captioning and LTX text encoding respectively. |
 | Three.js / TransformControls | Rendering and transform controls in the 4D camera editor; notice retained in web/lib/THREE_LICENSE. |
 | [VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite), [KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Video and graph helper nodes. |

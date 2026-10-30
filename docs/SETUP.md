@@ -1,9 +1,9 @@
 # Setup (Linux, one NVIDIA GPU with 24 GB, tested on Ubuntu 24.04)
 
-The documented setup uses Linux and an NVIDIA GPU with 24 GB VRAM, tested on Ubuntu 24.04. The default data root is `/data/sam3dbx`; override it in `config.local.json` (step 4).
+The documented setup uses Linux and an NVIDIA GPU with 24 GB VRAM, tested on Ubuntu 24.04. The default data root is `~/reshoot4d`; override it in `config.local.json` (step 4).
 
 ```
-/data/sam3dbx/
+~/reshoot4d/
   upstream/   4DAnyone (tracking + synced views)
   repo/       sam3dbx4danyone, with third_party/FreeTimeGsVanilla (the 4D splat trainer)
   cuda128/    CUDA 12.8 nvcc for the trainer's extensions
@@ -13,7 +13,7 @@ The documented setup uses Linux and an NVIDIA GPU with 24 GB VRAM, tested on Ubu
 ## 0. 4DAnyone (Python 3.11)
 
 ```bash
-mkdir -p /data/sam3dbx && cd /data/sam3dbx
+mkdir -p $HOME/reshoot4d && cd $HOME/reshoot4d
 git clone https://github.com/ant-research/4DAnyone.git upstream && cd upstream
 uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/python scripts/download_smplx.py      # SMPL-X needs a free registration on its site first
@@ -26,11 +26,11 @@ uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requi
 ## 1. Generator: sam3dbx4danyone (Python 3.11, torch 2.8 cu128)
 
 ```bash
-cd /data/sam3dbx
+cd $HOME/reshoot4d
 git clone --recurse-submodules https://github.com/OpsiClear-4DGS/sam3dbx4danyone.git repo
 # keep caches off a small root disk
 cat > env.sh <<'EOF'
-export UV_CACHE_DIR=/data/sam3dbx/uvcache UV_PYTHON_INSTALL_DIR=/data/sam3dbx/pythons HF_HOME=/data/sam3dbx/hf TMPDIR=/data/sam3dbx/tmp
+export UV_CACHE_DIR=$HOME/reshoot4d/uvcache UV_PYTHON_INSTALL_DIR=$HOME/reshoot4d/pythons HF_HOME=$HOME/reshoot4d/hf TMPDIR=$HOME/reshoot4d/tmp
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 EOF
 source env.sh && mkdir -p tmp
@@ -48,11 +48,11 @@ cd repo && UV_HTTP_TIMEOUT=120 uv sync --extra trt
 The lockfile's torch is 2.10+cu128, but uv's build isolation compiles gsplat / fused-ssim / torch_scatter against a cu130 torch, which gives `undefined symbol` errors at import. Build them against the venv's own torch with a matching CUDA 12.8 nvcc and C++20:
 
 ```bash
-micromamba create -y -p /data/sam3dbx/cuda128 -c nvidia/label/cuda-12.8.1 -c conda-forge cuda-nvcc cuda-cudart-dev cuda-libraries-dev cuda-nvrtc-dev
-C=/data/sam3dbx/cuda128; T=$C/targets/x86_64-linux
+micromamba create -y -p $HOME/reshoot4d/cuda128 -c nvidia/label/cuda-12.8.1 -c conda-forge cuda-nvcc cuda-cudart-dev cuda-libraries-dev cuda-nvrtc-dev
+C=$HOME/reshoot4d/cuda128; T=$C/targets/x86_64-linux
 export CUDA_HOME=$C PATH=$PATH:$C/bin TORCH_CUDA_ARCH_LIST=8.6 CC=/usr/bin/gcc CXX=/usr/bin/g++ \
        CPATH=$T/include LIBRARY_PATH=$T/lib:$C/lib NVCC_APPEND_FLAGS=-std=c++20 FORCE_CUDA=1 MAX_JOBS=8
-cd /data/sam3dbx/repo/third_party/FreeTimeGsVanilla
+cd $HOME/reshoot4d/repo/third_party/FreeTimeGsVanilla
 uv sync --locked                       # may fail on the CUDA extensions; the venv is still created
 P=.venv/bin/python; uv pip install --python $P setuptools wheel ninja
 uv pip install --python $P --no-build-isolation --reinstall --no-deps --no-cache \
@@ -73,11 +73,11 @@ uv pip install --python $P --no-build-isolation --reinstall --no-deps --no-cache
 cd ComfyUI/custom_nodes
 git clone https://github.com/itsmetamike/reshoot-4d.git reshoot-4d
 # optional: trainer overrides hook
-cd /data/sam3dbx/repo && git apply /path/to/ComfyUI/custom_nodes/reshoot-4d/patches/train_worker_overrides.patch
+cd $HOME/reshoot4d/repo && git apply /path/to/ComfyUI/custom_nodes/reshoot-4d/patches/train_worker_overrides.patch
 # optional: Capture's "subject" choice (left / right person in videos with more than one)
-cd /data/sam3dbx/upstream && git apply /path/to/ComfyUI/custom_nodes/reshoot-4d/patches/upstream_subject_pick.patch
+cd $HOME/reshoot4d/upstream && git apply /path/to/ComfyUI/custom_nodes/reshoot-4d/patches/upstream_subject_pick.patch
 # Capture's "quick" mode (tracking + source camera + setting, no generated views): needed for quick captures
-cd /data/sam3dbx/upstream && git apply /path/to/ComfyUI/custom_nodes/reshoot-4d/patches/upstream_quick_capture.patch
+cd $HOME/reshoot4d/upstream && git apply /path/to/ComfyUI/custom_nodes/reshoot-4d/patches/upstream_quick_capture.patch
 ```
 
 The background layer (the video's setting around the person) uses ComfyUI's built-in Depth Anything 3 and MoGe-2 support. Put both in `ComfyUI/models/geometry_estimation/`:
@@ -92,7 +92,7 @@ Install both setting models before using the main Retake workflow.
 Nothing to edit in the code. If your folder or GPUs differ from the defaults, create `config.local.json` next to `config.py` (or set the matching `SAM3DBX_*` environment variables):
 
 ```json
-{"root": "/data/sam3dbx", "cuda_arch": "8.6"}
+{"root": "/path/to/reshoot4d", "cuda_arch": "8.6"}
 ```
 
 - One GPU: that's all. Every step runs on GPU 0 and ComfyUI's models are unloaded before the heavy steps.
@@ -100,7 +100,7 @@ Nothing to edit in the code. If your folder or GPUs differ from the defaults, cr
 
 ## 5. Photoreal Pass (retake), LTX 2.3
 
-Custom nodes: [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) and [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes).
+Custom nodes: [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite), [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) and [ComfyUI-CrossViewWarp](https://github.com/cseti007/ComfyUI-CrossViewWarp) at commit `3266a83a84eaa6833a9ebc38ac7cdd8789e44f5b`. Check model bytes and SHA-256 against [Install](INSTALL.md#comfyui-models).
 
 Models, in the usual ComfyUI folders:
 
@@ -112,7 +112,9 @@ Models, in the usual ComfyUI folders:
 | `LTX23_video_vae_bf16.safetensors` | `models/vae` |
 | `LTX23_audio_vae_bf16.safetensors` | `models/vae` |
 | `ltx-2.3-spatial-upscaler-x2-1.1.safetensors` | `models/latent_upscale_models` |
-| `ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors` | `models/loras` |
+| `LTX2.3-22B_IC-LoRA-CrossView-Warp_v2_6000.safetensors` | `models/loras` |
+| `moge_2_vitl_normal_fp16.safetensors` | `models/geometry_estimation` |
+| `ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors` (only for `pass_type` union control) | `models/loras` |
 | `ltx-2-19b-ic-lora-detailer.safetensors` (only with `detailer` on) | `models/loras` |
 
 For automatic Retake captions, install `qwen3vl_8b_int8_convrot.safetensors` or the supported bf16 variant in `ComfyUI/models/text_encoders/`. Enter a manual prompt to bypass captioning. Gemma remains required for LTX text encoding.

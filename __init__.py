@@ -25,9 +25,9 @@ OUT = ROOT / "out" / "comfy"
 def _small_gpu():
     """GPU key for small jobs (depth/splat renders): the second card when config names one, else the main card. On a shared card,
     ComfyUI's models are unloaded first so the job fits."""
-    if GPUS["3070"] == GPUS["3090"]:
+    if GPUS["small"] == GPUS["big"]:
         _free_comfy()
-    return "3070"
+    return "small"
 
 
 def _env(gpu, train=False):
@@ -186,7 +186,7 @@ class Sam3dbxGenerateViews:
         _free_comfy()
         t = time.time()
         _run([GEN_PY, "inference.py", f"--video_path={src}", f"--views_per_layer={views}", f"--target_fps={target_fps}",
-              f"--start_time={start_time}", f"--seed={seed}", "--gpu_ids=[0]", f"--data_dir={run}"], log, _env("3090"))
+              f"--start_time={start_time}", f"--seed={seed}", "--gpu_ids=[0]", f"--data_dir={run}"], log, _env("big"))
         result = next((run / "fdanyone").iterdir())
         info = f"{views} views -> {result}"
         return {"ui": {"sam3dbx_result_dir": [str(result)]}, "result": (str(result), _grid(result, preview_height), info)}
@@ -207,9 +207,9 @@ class Sam3dbxTrain4DGS:
     FUNCTION = "run"; CATEGORY = CAT_ADV; OUTPUT_NODE = True
 
     def run(self, result_dir, steps, samples_per_keyframe, tag, preview_height):
-        gpu = "3090"   # the main card
+        gpu = "big"   # the main card
         out = Path(result_dir).parent.parent / f"train_{tag or f'{samples_per_keyframe}_{steps}'}"
-        if gpu == "3090":
+        if gpu == "big":
             _free_comfy()
         _run([GEN_PY, "train_4dgs.py", f"--result_dir={result_dir}", f"--output_dir={out}", "--gpu_id=0",
               f"--steps={steps}", f"--samples_per_keyframe={samples_per_keyframe}"], out.with_suffix(".log"), _env(gpu, train=True))

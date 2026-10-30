@@ -10,10 +10,19 @@
 <meta name="theme-color" content="#000000">
 <link rel="preload" href="../media/brand/Unbounded-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../media/brand/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../style.css?v=6">
 <style>
 .demo-head { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:24px; }
 .demo-head .button[disabled] { opacity:.55; cursor:wait; }
+.demo-head .note { margin:0; }
+.demo-top { padding-top:28px; }
+.demo-top h1 { margin-top:0; }
+.editor-host { position:relative; margin-top:24px; height:min(82vh,820px); min-height:640px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#000; }
+.editor-host.active { border-color:var(--accent); }
+.editor-loading { display:grid; place-items:center; height:100%; margin:0; color:var(--muted); }
+/* the editor normally fills the window; here it sits in the page */
+.editor-host .s3d-dir { position:absolute !important; inset:0 !important; z-index:1 !important; }
+.editor-host [title^="Minimise"] { display:none !important; }
 .keys { list-style:none; padding:0; margin:28px 0 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 28px; }
 .keys li { padding:12px 0; border-top:1px solid var(--line); color:var(--muted); font-size:15px; }
 .keys kbd { font:600 13px/1 "Space Grotesk",system-ui,sans-serif; color:#000; background:var(--accent); border-radius:4px; padding:3px 6px; margin-right:8px; }
@@ -27,14 +36,13 @@
 <nav aria-label="Main"><a href="../">Project page</a><a class="nav-cta" href="https://github.com/itsmetamike/reshoot-4d">GitHub</a></nav>
 </div></header>
 <main id="main">
-<section class="wrap section prose" aria-labelledby="demo-title">
+<section class="wrap section prose demo-top" aria-labelledby="demo-title">
 <h1 id="demo-title">Try the 4D camera editor</h1>
-<p>This is the Virtual Camera node's own editor, running in your browser on Example 1's real 4D capture. The camera move it opens with is the one rendered below. Change it, scrub the timeline, fly the camera, try a preset. Nothing is rendered here: rendering a move takes the full workflow and a GPU.</p>
+<div id="editor-host" class="editor-host" aria-label="The 4D camera editor on Example 1's 4D capture"><p class="editor-loading">Loading the capture…</p></div>
 <div class="demo-head">
-<button class="button" id="open-editor" type="button" disabled>Loading the capture…</button>
-<button class="button secondary" id="reset-move" type="button">Reset the move</button>
+<button class="button secondary" id="reset-move" type="button" disabled>Reset the move</button>
+<p class="note">Click inside the editor to use the keys. Best on a desktop browser. The capture is about 9 MB.</p>
 </div>
-<p class="note">Best on a desktop browser with a keyboard. The capture is about 9 MB.</p>
 <ul class="keys" aria-label="Editor keys">
 <li><kbd>Space</kbd>play and pause</li>
 <li><kbd>C</kbd>camera view or editor view</li>
@@ -51,6 +59,6 @@
 </section>
 </main>
 <footer class="wrap"><a href="../">Back to the project page</a></footer>
-<script type="module" src="demo.js"></script>
+<script type="module" src="demo.js?v=2"></script>
 </body>
 </html>

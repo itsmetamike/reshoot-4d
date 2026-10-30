@@ -1072,8 +1072,10 @@ async function openDirector(node) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing) {
       const span = nFrames() / fpsV(); playhead += dt * rate * previewMul;
-      if (playhead > lastT() + 1e-9) { if (loopOn) playhead -= span; else { playhead = lastT(); playing = false; } }
-      if (playhead < 0) { if (loopOn) playhead += span; else { playhead = 0; playing = false; } }
+      // a loop wraps onto the first frame even when it overshoots the last frame by less than a frame (the clamp below would pull
+      // an unwrapped playhead back onto the last frame and hold it there until a slow frame happened to jump past the span)
+      if (playhead > lastT() + 1e-9) { if (loopOn) playhead = Math.max(0, playhead - span); else { playhead = lastT(); playing = false; } }
+      if (playhead < 0) { if (loopOn) playhead = Math.min(lastT(), playhead + span); else { playhead = 0; playing = false; } }
       playhead = Math.min(Math.max(0, playhead), lastT()); live = false; drawTimeline();
     }
     { const f = frameOf(playhead), F = fpsV(), txt = `${String(Math.floor(f / F)).padStart(2, "0")}:${String(f % F).padStart(2, "0")}`;

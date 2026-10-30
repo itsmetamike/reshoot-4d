@@ -6,7 +6,7 @@ Reshoot 4D runs Capture -> Virtual Camera -> Retake -> Photoreal Pass inside Com
 
 Every size, SHA-256, commit and version below was measured on the reference machine on 2026-10-28. Where something could not be measured, it says unknown. The full recipe has not yet been replayed on a clean machine.
 
-The measured reference system is Ubuntu 24.04.5 LTS with 62 GiB reported RAM, NVIDIA driver 595.91.07, an RTX 3090 (24,576 MiB VRAM) and an RTX 3070 (8,192 MiB). Use one 24 GB NVIDIA GPU and about 64 GB RAM to match the reference. Peak RAM and a tested minimum RAM requirement are unknown. config.py defaults both GPU selections to the same device. The second GPU is optional for depth and splat renders; GPU memory is separate.
+The reference system is Ubuntu 24.04 with one NVIDIA RTX 3090 (24 GB VRAM) and 64 GB RAM. Use one 24 GB NVIDIA GPU and about 64 GB RAM to match the reference. Peak RAM and a tested minimum RAM requirement are unknown. config.py defaults both GPU selections to the same device. The second GPU is optional for depth and splat renders; GPU memory is separate.
 
 | Measured directory relative to ROOT | Rounded allocated size | Included nested sizes |
 | --- | --- | --- |
@@ -16,13 +16,13 @@ The measured reference system is Ubuntu 24.04.5 LTS with 62 GiB reported RAM, NV
 | cuda128 | 3.8G | CUDA 12.8 build toolchain |
 | hf | 4.4M | Separate from the other cache listings |
 
-The non-overlapping totals sum to about 101.8 GiB. Do not add nested environments or redirector/models again. The nine ComfyUI files used for automatic Retake captioning and default Photoreal Pass total 48,701,367,672 bytes (45.36 GiB). Published DA3 and MoGe files add about 1.12 GiB; their installed sizes are unknown. These account for about 148.3 GiB before ComfyUI, package/build caches, temporary files, videos and outputs. Reserve at least 200 GiB free as a planning allowance, with more for repeated captures. Each capture writes about 4.6 GB (measured for a 4.4 s video). A measured minimum disk requirement is unknown. Full checkout measurements include assets outside the public graph.
+The non-overlapping totals sum to about 101.8 GiB. Do not add nested environments or redirector/models again. The nine ComfyUI files used for automatic Retake captioning and default Photoreal Pass (CrossView) total 48,374,189,704 bytes (45.05 GiB). Published DA3 and MoGe files add about 1.12 GiB; their installed sizes are unknown. These account for about 148.0 GiB before ComfyUI, package/build caches, temporary files, videos and outputs. Reserve at least 200 GiB free as a planning allowance, with more for repeated captures. Each capture writes about 4.6 GB (measured for a 4.4 s video). A measured minimum disk requirement is unknown. Full checkout measurements include assets outside the public graph.
 
 ## Paths and repository revisions
 
 Use a Linux machine with an NVIDIA driver, Git, uv, a C/C++ compiler, FFmpeg and ffprobe. Install [uv](https://docs.astral.sh/uv/getting-started/installation/), [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html) and Node 22 before the commands below. On Ubuntu, Git, compilers and FFmpeg can be installed with `sudo apt-get install git build-essential python3-dev ffmpeg curl`. The 4DGS build also uses micromamba and Node 22 according to [SETUP.md](SETUP.md). Versions of Git, uv, FFmpeg, compilers and micromamba are unknown. Check that `ffmpeg -version` and `ffprobe -version` work in the service environment; Capture invokes both by name.
 
-The following is an example layout. Install uv, micromamba and Node 22 using their linked instructions before continuing. `ROOT` is an absolute data directory you choose. The default in `config.py` is `/data/sam3dbx`, which is also the reference machine's layout.
+The following is an example layout. Install uv, micromamba and Node 22 using their linked instructions before continuing. `ROOT` is an absolute data directory you choose. The default in `config.py` is `~/reshoot4d`.
 
 ```text
 ROOT/
@@ -44,6 +44,7 @@ ComfyUI/
 | --- | --- | --- |
 | [ComfyUI](https://github.com/comfyanonymous/ComfyUI.git) | ComfyUI | `e638023d54497dbe0579565e5de4bb7076899592` |
 | [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | ComfyUI/custom_nodes/ComfyUI-KJNodes | `d3cfe21625e5170126ce06fbfcfe1d88108688c3` |
+| [ComfyUI-CrossViewWarp](https://github.com/cseti007/ComfyUI-CrossViewWarp) | ComfyUI/custom_nodes/ComfyUI-CrossViewWarp | `3266a83a84eaa6833a9ebc38ac7cdd8789e44f5b` |
 | [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo) | ComfyUI/custom_nodes/ComfyUI-LTXVideo | `3bf3ca62595f1764c47d01c35c8e5dfe47e1a88f` |
 | [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite | `4d907bee61e92c2e65af3bd6383a4e4d356126d1` |
 | [repo](https://github.com/OpsiClear-4DGS/sam3dbx4danyone.git) | ROOT/repo | `1356955f5c1c3ecf1ab636af52048d4e312c1069` |
@@ -53,7 +54,7 @@ ComfyUI/
 | [tsog](https://github.com/xiaomi-research/tsog.git) | ROOT/repo/third_party/tsog | `a58102d0489a68c4f7e18e5e1ddaf613256417dd` |
 | [redirector](https://github.com/byeongjun-park/ReDirector.git) | ROOT/redirector | `ede9779ec09fb22b2120381deb39d824f1f3e3c7` |
 
-The installed Reshoot 4D commit is unknown in the inventory. Use the submission checkout. Other installed custom-node packs are outside the baseline. LTXVideo is recorded for reference; the generated graph uses core LTX nodes, KJNodes and VideoHelperSuite. ManualSigmas is a [core node](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/video_ltx2_i2v_distilled.json).
+The installed Reshoot 4D commit is unknown in the inventory. Use the submission checkout. Other installed custom-node packs are outside the baseline. LTXVideo is recorded for reference; the generated graph uses core LTX nodes, KJNodes, VideoHelperSuite and ComfyUI-CrossViewWarp. ManualSigmas is a [core node](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/video_ltx2_i2v_distilled.json).
 
 After each clone below, check out the corresponding commit in this table before installing dependencies. Initialize submodules after pinning the parent and check out the nested commits from the table. Use HTTPS submodule URLs. Local patch state is unknown.
 
@@ -157,6 +158,8 @@ git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 git clone https://github.com/kijai/ComfyUI-KJNodes.git
 git -C ComfyUI-KJNodes checkout d3cfe21625e5170126ce06fbfcfe1d88108688c3
 git -C ComfyUI-VideoHelperSuite checkout 4d907bee61e92c2e65af3bd6383a4e4d356126d1
+git clone https://github.com/cseti007/ComfyUI-CrossViewWarp.git
+git -C ComfyUI-CrossViewWarp checkout 3266a83a84eaa6833a9ebc38ac7cdd8789e44f5b   # no extra requirements; numba is an optional speed-up
 cd "$COMFY_DIR"
 uv venv --python 3.12.3 .venv
 uv pip install --python .venv/bin/python torch==2.14.0 torchvision --index-url https://download.pytorch.org/whl/cu130
@@ -169,7 +172,7 @@ Check out ComfyUI, KJNodes and VideoHelperSuite at the measured commits before i
 
 ComfyUI itself runs on Python 3.12.3 and torch 2.14.0 cu130 on the reference machine. Install torch 2.8.0 and torchvision 0.23.0 from https://download.pytorch.org/whl/cu128 in the upstream and ReDirector environments after their requirements, matching the measured runtime. Verify repo's uv sync resolves torch 2.8.0+cu128. The trainer must use 2.10.0+cu128.
 
-The graph requires core ManualSigmas, LTX guide/conditioning/A/V latent nodes, GetICLoRAParameters, TextGenerate, DA3 and MoGe support. KJNodes supplies VAELoaderKJ. VideoHelperSuite supplies VHS_LoadVideo and VHS_VideoCombine. Inspect the local /object_info endpoint for missing classes. The generated graph was inspected without loading weights.
+The graph requires core ManualSigmas, LTX guide/conditioning/A/V latent nodes, GetICLoRAParameters, TextGenerate, DA3 and MoGe support. KJNodes supplies VAELoaderKJ. VideoHelperSuite supplies VHS_LoadVideo and VHS_VideoCombine. ComfyUI-CrossViewWarp supplies CrossViewWarp; MoGeInference and LoadMoGeModel are core nodes. Inspect the local /object_info endpoint for missing classes. The generated graph was inspected without loading weights.
 
 Create `config.local.json` beside this pack's `config.py`:
 
@@ -225,6 +228,7 @@ Targets below use complete paths relative to the installation directory. ReDirec
 | `ltx-2.3-spatial-upscaler-x2-1.1.safetensors` | `ComfyUI/models/latent_upscale_models/ltx-2.3-spatial-upscaler-x2-1.1.safetensors` | 995,743,560 bytes | `5f416311fa8172b65af67530758964708d29a317b830d689a51143b7f91913ed` | [Lightricks/LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3/blob/cd784f3198e9ec3efec60b66a0fd78aafe413a86/ltx-2.3-spatial-upscaler-x2-1.1.safetensors) |
 | `ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors` | `ComfyUI/models/loras/ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors` | 654,465,352 bytes | `a1b888a87f661d27f08b394ae559e8e1050be33900bcc36a5cdf659e48f88d18` | [Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control](https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control/blob/b4d1c4d8c9e544e9bbbd6811bb4363708b6093ff/ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors) |
 | `ltx-2-19b-ic-lora-detailer.safetensors` | `ComfyUI/models/loras/ltx-2-19b-ic-lora-detailer.safetensors` | 2,617,401,920 bytes | `05efdae9e472e06d168e122f5ebb890e7ef348cc047cf9876da6504c36d7d0e2` | [Lightricks/LTX-2-19b-IC-LoRA-Detailer](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Detailer/blob/70afe09e20511305b7c0a471bded8e8babe7beab/ltx-2-19b-ic-lora-detailer.safetensors) |
+| `LTX2.3-22B_IC-LoRA-CrossView-Warp_v2_6000.safetensors` | `ComfyUI/models/loras/LTX2.3-22B_IC-LoRA-CrossView-Warp_v2_6000.safetensors` | 327,287,384 bytes | `e9796a6e14a8f8fadf0eda6c0ccc6c300c02bd5457fe9a0d4b91ffec39badda3` | [Cseti/LTX2.3-22B_IC-LoRA-CrossView-Warp_v2](https://huggingface.co/Cseti/LTX2.3-22B_IC-LoRA-CrossView-Warp_v2) |
 | `qwen3vl_8b_int8_convrot.safetensors` | `ComfyUI/models/text_encoders/qwen3vl_8b_int8_convrot.safetensors` | 9,350,798,360 bytes | `8bfd0f6e12abf2d2d697ecc888e5e90b0d6741d6708f05799f53afa560452e8f` | [Kutches/Qwen](https://huggingface.co/Kutches/Qwen/blob/main/qwen3vl_8b_int8_convrot.safetensors) |
 
 Gemma is required for LTX text encoding. Qwen is needed only when Retake's prompt is empty; enter a manual prompt to bypass it. The Qwen link identifies a published same-name conversion; the published SHA-256 matches the inventory. The audio VAE is loaded for A/V latent initialization even when only video frames are returned. Detailer is enabled in the example workflow and can be disabled. The 19B detailer is applied to the 2.3 22B base by the local graph; compatibility is not independently measured here.
@@ -320,7 +324,7 @@ If a class or model is missing, check its exact name against the manifest and `/
 
 ## Timings on one RTX 3090
 
-Measured on the reference machine (RTX 3090 for generation, RTX 3070 free) with the example settings: a 4.4 s video, 24 views, 15,000 training steps, 480p / 50-step Retake and the Photoreal detailer on. Capture times come from one full run's capture.log and ComfyUI's prompt history (2026-10-28, 15:09 to 16:13). The rest of the pipeline comes from Example 1's ComfyUI prompt total.
+Measured on the reference machine (one RTX 3090) with the example settings: a 4.4 s video, 24 views, 15,000 training steps, 480p / 50-step Retake and the Photoreal detailer on. Capture times come from one full run's capture.log and ComfyUI's prompt history (2026-10-28, 15:09 to 16:13). The rest of the pipeline comes from Example 1's ComfyUI prompt total.
 
 | Stage | Time |
 | --- | --- |
@@ -332,8 +336,9 @@ Measured on the reference machine (RTX 3090 for generation, RTX 3070 free) with 
 | **Capture total** | **63 min 31 s** |
 | Virtual Camera | interactive |
 | **Retake + Photoreal Pass (LTX 2.3), one camera move** | **28 min 21 s** |
+| Photoreal Pass alone, CrossView + detailer, from a finished retake | 5 min 22 s and 5 min 44 s (two clips) |
 
-Queueing the same video, trim and views again reuses the finished capture, so each extra camera move costs only the Retake + Photoreal Pass time. Separate Retake and LTX stage times are not logged.
+Queueing the same video, trim and views again reuses the finished capture, so each extra camera move costs only the Retake + Photoreal Pass time. The 28 min 21 s total was measured with the earlier `union control` pass; the CrossView row was timed separately from ComfyUI's prompt history (2026-10-29).
 
 ## Remaining unknowns
 

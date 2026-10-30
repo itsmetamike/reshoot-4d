@@ -19,6 +19,7 @@ import comfy.model_management as mm
 import comfy.utils
 import folder_paths
 
+from . import crossview as CV
 from . import director as D
 from . import ltx_graph as sg
 from . import rig as RIG
@@ -164,7 +165,7 @@ class Sam3dbxRetakeRun:
         if not Path(RD_PY).is_file():
             raise RuntimeError(f"ReDirector isn't installed at {REDIRECTOR} (no .venv). See docs/REDIRECTOR.md.")
         mm.unload_all_models(); mm.soft_empty_cache()   # ReDirector needs the card: 12 GB at 480p, 21 GB at 720p
-        env = {**os.environ, "CUDA_DEVICE_ORDER": "PCI_BUS_ID", "CUDA_VISIBLE_DEVICES": GPUS["3090"], "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        env = {**os.environ, "CUDA_DEVICE_ORDER": "PCI_BUS_ID", "CUDA_VISIBLE_DEVICES": GPUS["big"], "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
                "PYTHONUNBUFFERED": "1"}
         log = jp.with_name("retake.log"); pbar = comfy.utils.ProgressBar(int(j["steps"]))
         with open(log, "w") as lf:
@@ -198,8 +199,9 @@ class Sam3dbxRetakeRun:
 
 
 class Sam3dbxRetakePhotoreal:
-    """Photoreal Pass over a Retake: LTX 2.3 starts from the retake partway down its schedule, follows the retake's edges and starts on
-    the real first frame. Low start strength keeps the retake's motion and camera; higher repaints more."""
+    """Photoreal Pass over a Retake: LTX 2.3 starts from the retake partway down its schedule. CrossView (default): the CrossView-Warp
+    IC-LoRA steered by a depth warp of the real video along the move and by the real video itself. Union control: the retake's edges
+    and the real first frame as guides."""
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"retake": ("STRING", {"forceInput": True, "tooltip": "From Retake"}),
@@ -211,13 +213,23 @@ class Sam3dbxRetakePhotoreal:
                              "first_frame_strength": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True,
                                                                 "tooltip": "The real first frame as the start guide (identity)"}),
                              "detailer": ("BOOLEAN", {"default": True, "advanced": True, "tooltip": "Detailer LoRA in the final stage"})},
+                "optional": {"pass_type": (["crossview", "union control"], {"default": "crossview",
+                                           "tooltip": "crossview: the real video, warped along the move, guides LTX (sharper, holds large moves). "
+                                                      "union control: the retake's edges guide LTX (the start, control and detailer settings above)"}),
+                             "crossview_start": ("FLOAT", {"default": 0.7, "min": 0.3, "max": 1.0, "step": 0.05, "advanced": True,
+                                                          "tooltip": "CrossView: where LTX starts on its schedule over the retake. 1.0 ignores the retake"})},
                 "hidden": {"unique_id": "UNIQUE_ID"}}
     RETURN_TYPES = ("IMAGE", "FLOAT"); RETURN_NAMES = ("frames", "fps")
     OUTPUT_TOOLTIPS = ("The photoreal shot at 1024x1792 (or 1792x1024)", "Frame rate: the clip plays in real time")
     FUNCTION = "run"; CATEGORY = CAT
 
-    def run(self, retake, seed, start_strength, control_strength, control_lora_strength, first_frame_strength, detailer, unique_id=None):
+    def run(self, retake, seed, start_strength, control_strength, control_lora_strength, first_frame_strength, detailer, pass_type="crossview",
+            crossview_start=0.7, unique_id=None):
         j = json.loads(Path(retake).read_text()); fps = float(j["fps"]); LW, LH = _ltx_size(j["width"], j["height"])
+        if pass_type == "crossview":
+            api, dec, info = CV.build(j, LW, LH, fps, seed, crossview_start, detailer)
+            print(f"[Reshoot 4D] CrossView: pivot {info['pivot_z']:.2f} m, hfov {info['hfov']:.1f} deg, {len(info['keys'])} keys", flush=True)
+            return self._expand(api, dec, fps, unique_id)
         spec = {"prompt": j["prompt"] + " Sharp natural detail.", "video": {"seconds": (j["frames"] - 1) / fps + 1e-3, "fps": fps, "width": LW, "height": LH, "seed": seed},
                 "source": {"video": j["tag"] + ".mp4", "strength": start_strength},
                 "control": {"video": j["tag"] + "_canny.mp4", "type": "precomputed", "strength": control_strength, "lora_strength": control_lora_strength},
@@ -225,8 +237,12 @@ class Sam3dbxRetakePhotoreal:
                 "prefix": f"reshoot4d/{j['tag']}", "return_image": True}
         if not detailer:
             spec["detail"] = {"lora": None}
-        api, dec = sg.build(spec); P = f"{unique_id}.rp."
-        g = {}
+        api, dec = sg.build(spec)
+        return self._expand(api, dec, fps, unique_id)
+
+    @staticmethod
+    def _expand(api, dec, fps, unique_id):
+        P = f"{unique_id}.rp."; g = {}
         for nid, n in api.items():
             g[P + nid] = {"class_type": n["class_type"], "inputs": {k: ([P + v[0], v[1]] if isinstance(v, list) and len(v) == 2 and isinstance(v[0], str) and v[0] in api else v)
                                                                       for k, v in n["inputs"].items()}}

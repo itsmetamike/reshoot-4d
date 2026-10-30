@@ -26,20 +26,24 @@ Start with 480p mode, 50 steps and CFG 5. Portrait modes are 480x832 or 720x1280
 
 ## Photoreal Pass
 
-Connect Retake's `retake` output to Photoreal Pass (retake). It is a job JSON path, not just an MP4 filename. The pass expands into the local ltx_graph.py builder.
+Connect Retake's `retake` output to Photoreal Pass (retake). It is a job JSON path, not just an MP4 filename. The pass expands into LTX 2.3 nodes inside the same prompt.
+
+The default pass is **crossview**: LTX 2.3 with Cseti's [CrossView-Warp IC-LoRA](https://huggingface.co/Cseti/LTX2.3-22B_IC-LoRA-CrossView-Warp_v2) (Apache-2.0) and the [ComfyUI-CrossViewWarp](https://github.com/cseti007/ComfyUI-CrossViewWarp) node. MoGe-2 estimates the depth of the real video; CrossViewWarp warps the real video along your camera path. LTX starts from the retake partway down its schedule, with the warp and the real video as guides.
+
+Nothing is set by hand per clip. The pass reads the camera keys from the retake job (orbit angles and distance about the person), the orbit centre from the capture (her depth in front of the source camera, in metres) and the field of view from the source camera's intrinsics.
 
 | Setting | Current default / behavior |
 | --- | --- |
-| LTX source | Dense RGB retake video |
-| Start strength | 0.35, the starting point on the first-stage schedule |
-| Union control | CPU OpenCV Canny of the retake, precomputed at final size |
-| Control strength / LoRA strength | 0.6 / 0.7 |
-| Start image | Real source first frame, first-frame strength 0.9 |
+| pass_type | `crossview` (default) or `union control`, the earlier pass |
+| crossview_start | 0.7, where LTX starts on its schedule over the retake. 1.0 ignores the retake |
+| Guides | Depth warp of the real video along the path, then the real video itself (IC-LoRA guides) |
+| Detailer | On by default; the 19B detailer adapter in the full-size stage, on the 2.3 22B base |
 | Final portrait / landscape | 1024x1792 / 1792x1024 |
-| Detailer | On by default; uses the 19B adapter with the 2.3 22B base. |
 | Public outputs | Image batch and FPS; use a video output node to save the final video |
 
-The LTX graph uses two synthesis stages, including full-size refinement. Start strength 0.35 applies to the first stage.
+`union control` keeps the earlier pass: the retake as video-to-video input from start strength 0.35, its CPU Canny edges as union control (strength 0.6, LoRA 0.7) and the real first frame as the start guide (0.9). The start, control and first-frame settings apply to that pass only.
+
+Both passes use two synthesis stages: a half-size stage, an x2 latent upscale and a full-size refinement.
 
 ## Save and judge a result
 

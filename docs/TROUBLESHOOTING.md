@@ -15,6 +15,8 @@ See [Install](INSTALL.md) for setup and [Retake](REDIRECTOR.md) for the Retake r
 | GPU memory failure | Avoid simultaneous heavy jobs. Current nodes unload ComfyUI models for subprocess work. Qualify the 480p baseline before higher-resolution retakes. Exact capacity remains environment-specific. |
 | Wrong Photoreal pass or socket type | Use Photoreal Pass (retake), whose input is the Retake job JSON path. The older depth/anchor pass expects a prepared shot from another route. |
 | LTX load failure or unexpected output | Match exact model filenames, custom-node classes and union parameters to the tested export. Check the 19B detailer separately on the 22B base. |
+| CrossViewWarp or MoGeInference missing | CrossViewWarp: install ComfyUI-CrossViewWarp at the tested commit. MoGeInference / LoadMoGeModel: use a ComfyUI revision with core MoGe support. Missing weights: put MoGe-2 under models/geometry_estimation. Restart ComfyUI, or set Photoreal Pass to `union control`. |
+| Fast motion smears a face | CrossView can melt a face during quick spins or fast arms. Try a smaller move, a different seed, or `union control` for that shot. |
 | Editor freeze/lens change absent from final | Current Retake selects source indices uniformly and uses source intrinsics. See EDITOR.md; editor authoring support alone does not establish backend channel transfer. |
 | Person, background or camera extent changes | Compare source, retake and final at matching scene times to locate the change. Try a smaller camera move. |
 | Imported path looks wrong | Confirm cam data, real source-camera metadata and follow/locked space. A portable move still needs composition review on the new capture. |

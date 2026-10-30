@@ -7,9 +7,10 @@ Wan2.1-Fun-V1.1 1.3B Control-Camera (Apache-2.0).
 - **Target path:** your keys, re-based on the source camera's first-frame pose. The move must start on the real camera.
 
 **Photoreal Pass (retake)** uses LTX 2.3 to render every final frame:
-- it uses the retake as video-to-video input with start strength 0.35 in the first stage;
-- the retake's Canny edges (computed on the CPU) act as union control;
-- the real first frame is the start guide.
+- it starts from the retake partway down its schedule (crossview_start 0.7);
+- a depth warp of the real video along your path and the real video itself guide it through the CrossView-Warp IC-LoRA;
+- the detailer adapter refines the full-size stage.
+See [Workflow](WORKFLOW.md#photoreal-pass) for the settings and the earlier `union control` pass.
 
 ## Install
 

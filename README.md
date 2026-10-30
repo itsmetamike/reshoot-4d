@@ -17,7 +17,7 @@ Watch the [explainer](site/media/explainer.mp4) (35 s) and the [walkthrough](sit
 | **Capture** | Turns a video of a person into a 4D capture of them in their setting and solves the real source camera. |
 | **Virtual Camera** | Opens the 4D camera editor on the node. Keyframe a new camera over the moving capture; the path saves with the workflow. |
 | **Retake** | Reshoots the whole source video along your path (ReDirector). |
-| **Photoreal Pass** | LTX 2.3 renders the final frames from the retake. |
+| **Photoreal Pass** | LTX 2.3 renders the final frames from the retake, guided by the real video and a depth warp of it along your path (CrossView-Warp IC-LoRA). |
 
 ![The Reshoot 4D workflow in ComfyUI](site/media/workflow_graph.jpg)
 
@@ -43,17 +43,13 @@ Footage from Pexels, see [Credits](docs/CREDITS.md).
 
 ## Limitations
 
-**Small face and timing drift.** The reshoot follows the source performance closely, but small details can drift: an expression, a blink, a beat of timing. In Example 5 her eyes are open in the reshoot.
-
-![Example 5: eyes open in the reshoot](docs/media/limits_face.jpg)
-
 **No fixed world.** Reshoot 4D does not build a 3D world and composite the person onto it. Each reshoot regenerates what the source camera never saw, so off-camera objects can differ from one angle to the next. In Example 4 the view through the window changes between moves.
 
 ![Example 4: the view through the window changes between moves](docs/media/limits_world.jpg)
 
-**Large moves distort.** Smooth paths that travel far from the source camera can distort the person and the setting, so the examples above use small moves (about 20° of swing and 10° of rise). We expect this range to grow with more compute and time than this release had.
+**Fast motion smears.** Quick spins and fast arms can melt a face for a few frames. In Example 6 her face smears mid-spin.
 
-![Large moves: one smooth path per example, with the source inset](docs/media/readme_limits_large_moves.gif)
+![Example 6: her face smears mid-spin](docs/media/limits_fast_motion.jpg)
 
 ## Virtual Camera - 4D Camera Editor
 
@@ -75,6 +71,7 @@ Tested on Ubuntu 24.04 with one NVIDIA RTX 3090 (24 GB). A shot takes about 30 m
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/itsmetamike/reshoot-4d.git
+git clone https://github.com/cseti007/ComfyUI-CrossViewWarp.git && git -C ComfyUI-CrossViewWarp checkout 3266a83a84eaa6833a9ebc38ac7cdd8789e44f5b
 bash reshoot-4d/scripts/install_redirector.sh
 ```
 
