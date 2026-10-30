@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Try the Reshoot 4D camera editor in your browser on a real 4D capture.">
+<meta name="color-scheme" content="dark">
+<title>Reshoot 4D | Try the 4D camera editor</title>
+<link rel="icon" type="image/svg+xml" href="../media/brand/favicon.svg">
+<meta name="theme-color" content="#000000">
+<link rel="preload" href="../media/brand/Unbounded-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../media/brand/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../style.css">
+<style>
+.demo-head { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:24px; }
+.demo-head .button[disabled] { opacity:.55; cursor:wait; }
+.keys { list-style:none; padding:0; margin:28px 0 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 28px; }
+.keys li { padding:12px 0; border-top:1px solid var(--line); color:var(--muted); font-size:15px; }
+.keys kbd { font:600 13px/1 "Space Grotesk",system-ui,sans-serif; color:#000; background:var(--accent); border-radius:4px; padding:3px 6px; margin-right:8px; }
+.result { max-width:1100px; }
+@media (max-width:800px) { .keys { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header class="masthead"><div class="wrap header-inner">
+<a class="brand" href="../" aria-label="Reshoot 4D home"><img src="../media/brand/reshoot4d_wordmark_t.svg" width="1728" height="172" alt="Reshoot 4D"></a>
+<nav aria-label="Main"><a href="../">Project page</a><a class="nav-cta" href="https://github.com/itsmetamike/reshoot-4d">GitHub</a></nav>
+</div></header>
+<main id="main">
+<section class="wrap section prose" aria-labelledby="demo-title">
+<h1 id="demo-title">Try the 4D camera editor</h1>
+<p>This is the Virtual Camera node's own editor, running in your browser on Example 1's real 4D capture. The camera move it opens with is the one rendered below. Change it, scrub the timeline, fly the camera, try a preset. Nothing is rendered here: rendering a move takes the full workflow and a GPU.</p>
+<div class="demo-head">
+<button class="button" id="open-editor" type="button" disabled>Loading the capture…</button>
+<button class="button secondary" id="reset-move" type="button">Reset the move</button>
+</div>
+<p class="note">Best on a desktop browser with a keyboard. The capture is about 9 MB.</p>
+<ul class="keys" aria-label="Editor keys">
+<li><kbd>Space</kbd>play and pause</li>
+<li><kbd>C</kbd>camera view or editor view</li>
+<li><kbd>J K L</kbd>shuttle back, stop, forward</li>
+<li><kbd>W A S D</kbd>fly the camera</li>
+<li><kbd>I</kbd>add a key at the playhead</li>
+<li><kbd>Esc</kbd>close the editor</li>
+</ul>
+</section>
+<section class="wrap section" aria-labelledby="result-title">
+<h2 id="result-title">What this move renders to</h2>
+<figure class="result"><div class="video-shell"><video autoplay muted loop playsinline preload="metadata" poster="data/example1_result.jpg" aria-label="Example 1: source next to the final shot, with the camera path from above"><source src="data/example1_result.mp4" type="video/mp4"></video></div>
+<figcaption class="note">The source video next to the final shot (LTX 2.3), with the camera path seen from above.</figcaption></figure>
+</section>
+</main>
+<footer class="wrap"><a href="../">Back to the project page</a></footer>
+<script type="module" src="demo.js"></script>
+</body>
+</html>
