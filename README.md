@@ -41,17 +41,29 @@ Load [the Reshoot 4D workflow](workflows/Reshoot%204D.json) and follow the [Work
 
 ## Results
 
+### New in 0.1.0
+
+**Camera settings on every key.** Set the aperture after the render: the same frames with no depth of field, then shallow.
+
+![The same reshoot without depth of field and with a shallow aperture, wiped side by side](docs/media/readme_new_aperture.gif)
+
+**Bring your own camera.** A crane move made in Blender, imported as an `.fbx` camera and started on the source camera.
+
+![Source video, the imported .fbx camera and the final reshoot](docs/media/readme_new_camera_import.gif)
+
+**Zoom through the lens.** A dolly zoom: the camera pulls back while the lens zooms in, so he holds his size while the skyline grows.
+
+![Source video and a dolly-zoom reshoot, with guide lines at his head and feet](docs/media/readme_new_dolly_zoom.gif)
+
+### Reshoots
+
 Each example: the source video, then three new camera moves. The top view on each reshoot shows the camera path.
 
 ![Example 1: source and three reshoots with their camera paths](docs/media/readme_example_1.gif)
 
 ![Example 2: source and three reshoots with their camera paths](docs/media/readme_example_2.gif)
 
-![Example 3: source and three reshoots with their camera paths](docs/media/readme_example_3.gif)
-
 ![Example 4: source and three reshoots with their camera paths](docs/media/readme_example_4.gif)
-
-![Example 5: source and three reshoots with their camera paths](docs/media/readme_example_5.gif)
 
 ![Example 6: source and three reshoots with their camera paths](docs/media/readme_example_6.gif)
 
