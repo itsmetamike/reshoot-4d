@@ -46,7 +46,7 @@
 
 <section id="why-4d" class="wrap section prose" aria-labelledby="why-title">
 <h2 id="why-title">Why 4D</h2>
-<p>You direct inside a 4D capture of the real scene: real scale, the real source camera path, the person's real motion and timing. The retake is driven by that geometry, and the pixels come from reshooting the real footage, so the person, place and motion stay theirs. LTX 2.3 renders every final frame. The capture is also a reusable asset, ready for video models that take 3D conditioning.</p>
+<p>You direct inside a 4D capture of the real scene: approximate real scale, the estimated source camera path, the person's real motion and timing. The retake is driven by that geometry, and the pixels come from reshooting the real footage, so the person, place and motion stay theirs. LTX 2.3 renders every final frame. The capture is also a reusable asset, ready for video models that take 3D conditioning.</p>
 </section>
 
 <section id="editor" class="wrap section" aria-labelledby="editor-title">
@@ -146,7 +146,7 @@ document.querySelectorAll('[data-repo-path]').forEach(a => { a.href = REPO_URL +
 
 // workflow steps: one player, four tabs
 const STEPS = [
-  ['step_capture', 'Turns a video into a 4D capture of the person in their setting and solves the source camera.'],
+  ['step_capture', 'Turns a video into a 4D capture: the person in 3D over time, the background scene, and where the original camera stood and moved.'],
   ['step_camera', "Every step is a ComfyUI node. The 4D camera editor is the Virtual Camera node's own panel."],
   ['step_retake', 'ReDirector reshoots the source video along your camera path.'],
   ['step_photoreal', 'LTX 2.3 renders every final frame. It starts from the retake, guided by the real video and a depth warp of it along your path.'],

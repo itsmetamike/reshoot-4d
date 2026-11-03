@@ -1,6 +1,6 @@
 # Credits and provenance
 
-Reshoot 4D combines a ComfyUI workflow and a 4D camera editor. itsmetamike's contribution is the node-pack integration, capture-to-setting/camera handoff, Virtual Camera authoring tools and the Retake-to-LTX workflow. Upstream projects provide the learned models and reconstruction systems.
+Reshoot 4D combines a ComfyUI workflow and a 4D camera editor. itsmetamike's contribution is the node-pack integration, capture-to-background/camera handoff, Virtual Camera authoring tools and the Retake-to-LTX workflow. Upstream projects provide the learned models and reconstruction systems.
 
 | Project | Contribution |
 | --- | --- |
@@ -99,6 +99,9 @@ Example footage is credited below with its source pages and the [Pexels licence]
 | runner tying laces | [7877153](https://www.pexels.com/video/a-woman-tying-her-shoelace-7877153/) | MART PRODUCTION |
 | beanie man | [8118142](https://www.pexels.com/video/a-man-playing-drum-machine-8118142/) | Anna Pou |
 | mic man | [8135170](https://www.pexels.com/video/man-is-talking-while-recording-using-condenser-microphone-8135170/) | ANTONI SHKRABA production |
+| skyline coat man | [7382764](https://www.pexels.com/video/man-standing-and-looking-at-camera-7382764/) | John Diez |
+| neon scarf man | [6308520](https://www.pexels.com/video/a-man-standing-in-front-of-the-camera-6308520/) | Uriel Mont |
+| yoga lunge | [9003238](https://www.pexels.com/video/a-woman-in-a-low-lunge-pose-9003238/) | Olia Danilevich |
 
 ## Demo video audio
 

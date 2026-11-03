@@ -42,7 +42,7 @@ def _preview(train_dir: Path):
     if not ckpts:
         if meta.is_file() and pts.is_file():   # fast-mode capture: the mannequin preview is written by fast_rig.py
             return meta, pts
-        raise FileNotFoundError("no checkpoint")
+        raise FileNotFoundError("this capture has no preview yet (no trained splat or mannequin): run Capture first, then open the Virtual Camera")
     if not (meta.is_file() and pts.is_file() and meta.stat().st_mtime >= ckpts[-1].stat().st_mtime):
         subprocess.run([TRAIN_PY, str(HERE / "dump_points.py"), f"--train_dir={train_dir}"], check=True, capture_output=True,
                        env={**__import__("os").environ, "CUDA_VISIBLE_DEVICES": ""})
@@ -94,6 +94,10 @@ async def director_meta(request):
     # the real input camera at the first frame (source_cam.py), in the Director's training space: presets start the shot on it
     import numpy as np
     cap = S.Capture(td, zoom_views=False); c2w = cap.pose(cap.source_cam, 0); K = cap.cams[cap.source_cam][1]
+    try:   # metres per capture unit (her height = 1.7 m): the editor's focus distances and depth-of-field preview
+        m["metres_per_unit"] = S.metres_per_unit(S.Capture(td, zoom_views=False, scene=True))
+    except Exception:  # noqa: BLE001 - the preview falls back to a guess
+        pass
     eye = c2w[:3, 3]; d = float(np.linalg.norm(np.array(m["centre"]) - eye))
     if "follow" in m.get("track", {}):   # keys live relative to her (Virtual Camera follow): the real camera at frame 0 as such a key
         from . import director as D
@@ -128,3 +132,47 @@ async def file(request):
     if not p.is_file() or not _allowed(p):
         return web.Response(status=404)
     return web.FileResponse(p)
+
+@routes.post("/sam3dbx/director/camfile")
+async def director_camfile(request):
+    """Camera file import (.fbx/.abc/.usd*): a multipart upload returns the cameras it holds; {path, camera, train_dir} bakes one into a
+    move relative to its first frame, in this capture's units (camfile.py)."""
+    import asyncio
+    from . import camfile as CF
+    loop = asyncio.get_running_loop()
+    try:
+        if request.content_type.startswith("multipart/"):
+            form = await request.post(); f = form.get("file")
+            if f is None:
+                return web.json_response({"error": "no file in the upload"}, status=400)
+            p = CF.store(f.file.read(), f.filename, UPLOADS / "camfiles")
+            info = await loop.run_in_executor(None, CF.list_cameras, p)
+            if not info["cameras"]:
+                return web.json_response({"error": f"{f.filename} has no cameras (it holds: {', '.join(info['objects']) or 'nothing'})"}, status=400)
+            return web.json_response({"path": str(p), **info, "file": f.filename})
+        b = await request.json()
+        p, td = Path(b["path"]), Path(b["train_dir"])
+        if not p.resolve().is_relative_to((UPLOADS / "camfiles").resolve()) or not p.is_file():
+            return web.json_response({"error": "camera file not found, import it again"}, status=404)
+        if not td.is_dir() or not _allowed(td):
+            return web.json_response({"error": f"capture not found: {td}"}, status=404)
+        from . import shot as S
+        m = await loop.run_in_executor(None, lambda: S.metres_per_unit(S.Capture(td, zoom_views=False, scene=True)))
+        return web.json_response(await loop.run_in_executor(None, CF.bake, p, b["camera"], m))
+    except Exception as e:  # noqa: BLE001 - surface the reason in the Director window
+        return web.json_response({"error": str(e)}, status=400)
+
+
+@routes.post("/sam3dbx/director/camexport")
+async def director_camexport(request):
+    """The Virtual Camera move as an .fbx / .usdc / .abc camera (camfile.export_camera)."""
+    import asyncio
+    from . import camfile as CF
+    try:
+        b = await request.json(); td = Path(b["train_dir"])
+        if not td.is_dir() or not _allowed(td):
+            return web.json_response({"error": f"capture not found: {td}"}, status=404)
+        data, name = await asyncio.get_running_loop().run_in_executor(None, CF.export_camera, b["state"], td, b.get("format", "fbx"))
+    except Exception as e:  # noqa: BLE001 - surface the reason in the Director window
+        return web.json_response({"error": str(e)}, status=400)
+    return web.Response(body=data, content_type="application/octet-stream", headers={"Content-Disposition": f'attachment; filename="{name}"'})

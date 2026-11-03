@@ -206,6 +206,18 @@ bash scripts/install_redirector.sh "$SAM3DBX_ROOT/redirector"
 
 The local installer installs upstream requirements plus natsort with uv. Current upstream requires torch 2.8.0 and torchvision 0.23.0 using the cu128 index. It downloads from moving `main` URLs. Direct-download model revisions and complete dependency locks are unknown. Verify downloads against the recorded hashes below.
 
+## Optional: camera files and finishing
+
+Camera file import (`.fbx`, `.abc`, `.usd*`) needs [Blender](https://www.blender.org/download/) 4.2 or newer (tested with 5.1.1). It runs headless and is not part of the graph. Put it on PATH or set its executable in `config.local.json`:
+
+```json
+{"blender": "/opt/blender-5.1.1-linux-x64/blender"}
+```
+
+Finish's frame rate needs [ComfyUI-Frame-Interpolation](https://github.com/Fannovel16/ComfyUI-Frame-Interpolation) (MIT; measured at `26545cc2dd95bc3d27f056016300673bdeee78f5`). It downloads `rife49.pth` on first use.
+
+Camera FX uses two ComfyUI models: `moge_2_vitl_normal_fp16.safetensors` (already in the manifest) and `birefnet.safetensors` below. It runs on `gpu_small`; 8 GB is enough.
+
 ## Model manifest
 
 Read [Models and licences](MODELS_AND_LICENSES.md) before downloading. Exact bytes and hashes below come from the inventory unless labelled public. Missing values are unknown. A matching published hash establishes file identity, while original download history can remain unknown. Moving-main source revisions are unknown unless a pinned release is stated.
@@ -219,6 +231,7 @@ Targets below use complete paths relative to the installation directory. ReDirec
 | Exact filename | Target folder | Bytes (measured unless public) | SHA-256 | Source |
 | --- | --- | --- | --- | --- |
 | `depth_anything_3_base.safetensors` | `ComfyUI/models/geometry_estimation/depth_anything_3_base.safetensors` | 541,524,124 bytes | `418c0d2ea857e2d1215fa51baa46833f499a62eb2400ec63d337aa20d326414f` | [Comfy-Org/Depth-Anything-3](https://huggingface.co/Comfy-Org/Depth-Anything-3/blob/657708b0ec5f218cbf14bff0bb2cb8c58ea3fe33/geometry_estimation/depth_anything_3_base.safetensors) |
+| `birefnet.safetensors` | `ComfyUI/models/background_removal/birefnet.safetensors` | 444,473,596 bytes | `9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154` | [Comfy-Org/BiRefNet](https://huggingface.co/Comfy-Org/BiRefNet/blob/main/background_removal/birefnet.safetensors) |
 | `moge_2_vitl_normal_fp16.safetensors` | `ComfyUI/models/geometry_estimation/moge_2_vitl_normal_fp16.safetensors` | 661,859,924 bytes | `cb1a692d03235671e959e81360d7b4d9f44aefadb1f852d6ca6aa17799d5e31f` | [Comfy-Org/MoGe](https://huggingface.co/Comfy-Org/MoGe/blob/7f19f325949e1e7bb31c720333936f03cf932f57/geometry_estimation/moge_2_vitl_normal_fp16.safetensors) |
 | `ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors` | `ComfyUI/models/diffusion_models/ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors` | 21,505,993,424 bytes | `30fe2173fdb18881eb2482ece17ca044bedb8f28a38550ea7230da796fb8b614` | [Kijai/LTX2.3_comfy](https://huggingface.co/Kijai/LTX2.3_comfy/blob/a5a175044e7607277812c00b98a27718a4c42710/diffusion_models/ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors) |
 | `gemma_3_12B_it_fp4_mixed.safetensors` | `ComfyUI/models/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors` | 9,447,702,218 bytes | `aaca463d11e6d8d2a4bdb0d6299214c15ef78a3f73e0ef8113d5a9d0219b3f6d` | [Comfy-Org/ltx-2](https://huggingface.co/Comfy-Org/ltx-2/blob/fff639871e076110fc09c4cc43353c82a1b15ef1/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors) |

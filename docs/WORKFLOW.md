@@ -2,9 +2,13 @@
 
 Take a video of one person through Capture -> Virtual Camera -> Retake -> **Photoreal Pass (retake)**. LTX 2.3 renders every final frame.
 
+## Settings
+
+The **Settings** panel under the Start here note holds the switches people change between runs: quality (Retake resolution, 480p or 720p), output frame rate and upscale (Finish), and the Photoreal pass type. Each one drives the setting on its stage node.
+
 ## Capture
 
-Upload a video in Capture and trim it. Capture prepares the tracked person, source-camera solve and person-in-setting transform. See the example workflow for mode selection; 4DGS mode also trains a splat for the editor preview and reusable asset.
+Upload a video in Capture and trim it. Capture prepares the tracked person, an estimate of the original (source) camera's position and field of view, and places both in the background scene. See the example workflow for mode selection; 4DGS mode also trains a splat for the editor preview and reusable asset.
 
 The source-camera solve uses GVHMR observations, body geometry and PnP in source_cam.py. The scene layer uses DA3 and body registration to place the source camera and person in a setting frame. These are estimates. They do not establish metrically exact reconstruction. The retake adapter estimates translation scale from a posed body extent using an assumed 1.7 m height.
 
@@ -20,7 +24,7 @@ Begin with a modest arc or push. Large unseen-side moves are useful to explore i
 
 Connect Virtual Camera's capture and path outputs to Retake. The implementation samples 81 source indices and 81 target-camera samples. Both trajectories use OpenCV camera-to-world matrices relative to their first pose, with scaled translations. The adapter carries the source camera's initial tilt/roll into the target. An initial-position/orientation check rejects a path too far from the source camera.
 
-ReDirector uses the actual source video, the solved source path and the target path to reshoot the person and setting jointly. It runs in its own environment after ComfyUI unloads models. A non-empty manual prompt is used directly. If the prompt is empty, Qwen3-VL 8B describes the real first frame. There is no automatic Gemma fallback in this Retake node.
+ReDirector uses the actual source video, the solved source path and the target path to reshoot the person and background scene together. It runs in its own environment after ComfyUI unloads models. A non-empty manual prompt is used directly. If the prompt is empty, Qwen3-VL 8B describes the real first frame. There is no automatic Gemma fallback in this Retake node.
 
 Start with 480p mode, 50 steps and CFG 5. Portrait modes are 480x832 or 720x1280; landscape swaps dimensions. Keep the seed and prompt with each result. See [Retake setup](REDIRECTOR.md) for runtime details.
 
@@ -44,6 +48,14 @@ Nothing is set by hand per clip. The pass reads the camera keys from the retake 
 `union control` keeps the earlier pass: the retake as video-to-video input from start strength 0.35, its CPU Canny edges as union control (strength 0.6, LoRA 0.7) and the real first frame as the start guide (0.9). The start, control and first-frame settings apply to that pass only.
 
 Both passes use two synthesis stages: a half-size stage, an x2 latent upscale and a full-size refinement.
+
+## Camera FX and Finish
+
+**Camera FX** takes the Photoreal Pass frames with the Virtual Camera's `camera_path` and Retake's `retake`. It applies what the keys ask for and nothing else: the lens change the Retake left out (a crop, aimed at the subject unless the shot says centre), depth of field from MoGe-2 metric depth with the subject's edges kept sharp by a BiRefNet matte (or any matte you wire in), roll, vignette and grain. It runs on the small GPU (`gpu_small`) in about a minute for a 4 s clip; on one GPU it frees ComfyUI's models first. Its `keyframes` box takes JSON keys that override the path's, and its `blur_map` output shows where it focused.
+
+Camera FX also applies the shot's lens character (distortion, chromatic aberration, bloom, halation, anamorphic bokeh) and, with **passes** on, outputs a depth pass and the subject matte for compositing.
+
+**Finish** is optional and passes the clip through by default. **frame_rate** converts to 24, 25, 30, 48, 50 or 60 fps with RIFE in-between frames (same clip length); **shutter_angle** adds motion blur by averaging in-between frames over the shutter (the Virtual Camera's Shot setting overrides); **upscale** resizes with lanczos so the long side fits 1920, 2560 or 3840 px. It cuts the source video's audio over the clip (from the capture's trim) and saves a copy of the camera path beside the output. Connect its `fps` and `audio` outputs to the video save node. Frame rate and shutter need ComfyUI-Frame-Interpolation.
 
 ## Save and judge a result
 

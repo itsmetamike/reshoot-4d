@@ -12,7 +12,7 @@ An exported path uses `dropcam_path: 1`, a `state` object and, when metadata per
 | state.keys | Camera keys; `t` in seconds, `eye` and `target` vectors, `lens`, `roll`, `scene`, `ease`; some keys also carry aim/freeze behavior. |
 | state.path | Orbit or spline interpolation. |
 | state.shot_ease | `smooth` enables whole-shot camera time remapping. Other/absent uses per-key behavior. |
-| state.follow | False locks the camera in the setting; enabled follow travels with the subject track when available. |
+| state.follow | False fixes the camera in the background scene; enabled follow travels with the subject track when available. |
 | state.scene_mode / speed / scene_end | Performance time mapping and end behavior. Distinct from transport preview speed. |
 | state.space_dir | Capture space used to author the absolute keys; not a portable download location. |
 | state.aspect | Shot aspect when present; importing onto another capture keeps that capture's aspect. |
@@ -45,3 +45,19 @@ Export paths from Virtual Camera and keep the JSON with the workflow and render 
 Check matching key/portable-entry counts, finite vectors and times, positive FPS/duration, source-camera start and playback after import on a second capture. Review composition for each capture.
 
 The Retake adapter currently consumes target poses but not every saved channel. Lens and capture-time/freeze transfer are limited as described in [Editor](EDITOR.md). Keep the path file with each render even where those channels are unused.
+
+## Camera files (.fbx, .abc, .usd, .usda, .usdc, .usdz)
+
+Import in the Virtual Camera also takes camera files. Blender (headless, `blender` in config) reads the file on the server and lists its cameras; with more than one you pick which. The picked camera is baked at every frame, so parents, constraints and caches are included.
+
+The move is kept relative to the camera's own first frame and starts on this clip's real camera, fixed in the background scene (no shared scene or round trip needed). Translation uses the capture's metric scale (her height = 1.7 m, the same scale Retake uses). Roll carries over. Focal length changes become lens changes relative to the real lens. Keys use spline interpolation, one per frame, up to 240.
+
+Focus distance and f-stop are stored on each key (`focus` in capture units, `fstop`) when the file's camera has depth of field on. Nothing renders them yet.
+
+Known limits: Blender's Alembic importer does not read animated focal length (the pose is fine). Files need a real camera solve on the capture.
+
+## Camera settings on keys (Camera FX)
+
+Keys may carry `fstop` (0.7-22), `focus` (metres, or `"subject"` to follow the person), `vignette` and `grain` (0-1). A key without a setting carries it on from the keys around it. `state.zoom_aim` (`subject` or `centre`) sets where lens changes zoom to. Camera FX reads these from the path (its `camera_path` input), timed across the clip; focus moves in diopters between keys.
+
+Lens changes: the Retake holds the move's widest lens (`retake_zoom` in path.npz) and Camera FX applies the rest as a crop (`post_zoom`, via its `retake` input), so a lens change is applied once and changing it needs no new re-shoot. Imported camera files put their focus distance (metres) and f-stop on the keys.

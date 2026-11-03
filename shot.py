@@ -85,6 +85,13 @@ class Capture:
         return V
 
 
+def metres_per_unit(cap):
+    """Capture units to metres: her body's long axis at the middle of the clip is 1.7 m (Retake and the camera file import share it)."""
+    V = cap.geometry(); Vm = V[int(round((cap.frames - 1) / 2))]
+    ax = np.linalg.svd(Vm - Vm.mean(0), full_matrices=False)[2][0]
+    return 1.7 / float((Vm @ ax).max() - (Vm @ ax).min())
+
+
 def scene_meta(train_dir, m):
     """A capture's Virtual Camera meta in the setting's frame when it has one: head/body tracks and the subject centre moved with her,
     plus her per-frame transform (row-major 4x4s) for the viewport. Unchanged without a setting solve."""

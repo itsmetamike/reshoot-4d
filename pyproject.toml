@@ -1,0 +1,12 @@
+[project]
+name = "reshoot-4d"
+description = "Reshoot any video in 4D. A 4D camera editor inside ComfyUI, running locally on open weights."
+version = "0.1.0"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/itsmetamike/reshoot-4d"
+Documentation = "https://itsmetamike.github.io/reshoot-4d/"
+
+[tool.comfy]
+DisplayName = "Reshoot 4D"

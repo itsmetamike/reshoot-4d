@@ -15,7 +15,8 @@ This table matches Install's ComfyUI manifest. Source links identify the convert
 | Exact filename | Role | Source artifact | Licence |
 | --- | --- | --- | --- |
 | `depth_anything_3_base.safetensors` | Setting depth | [Comfy-Org/Depth-Anything-3](https://huggingface.co/Comfy-Org/Depth-Anything-3/blob/657708b0ec5f218cbf14bff0bb2cb8c58ea3fe33/geometry_estimation/depth_anything_3_base.safetensors) | Apache-2.0 |
-| `moge_2_vitl_normal_fp16.safetensors` | Setting sky mask; CrossView depth of the real video | [Comfy-Org/MoGe](https://huggingface.co/Comfy-Org/MoGe/blob/7f19f325949e1e7bb31c720333936f03cf932f57/geometry_estimation/moge_2_vitl_normal_fp16.safetensors) | MIT |
+| `birefnet.safetensors` | Camera FX subject matte (focus and sharp edges, zoom aim) | [Comfy-Org/BiRefNet](https://huggingface.co/Comfy-Org/BiRefNet/blob/main/background_removal/birefnet.safetensors) | MIT per upstream BiRefNet |
+| `moge_2_vitl_normal_fp16.safetensors` | Setting sky mask; CrossView depth of the real video; Camera FX depth | [Comfy-Org/MoGe](https://huggingface.co/Comfy-Org/MoGe/blob/7f19f325949e1e7bb31c720333936f03cf932f57/geometry_estimation/moge_2_vitl_normal_fp16.safetensors) | MIT |
 | `ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors` | Final synthesis | [Kijai/LTX2.3_comfy](https://huggingface.co/Kijai/LTX2.3_comfy/blob/a5a175044e7607277812c00b98a27718a4c42710/diffusion_models/ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors) | LTX-2 Community License |
 | `gemma_3_12B_it_fp4_mixed.safetensors` | LTX text encoding | [Comfy-Org/ltx-2](https://huggingface.co/Comfy-Org/ltx-2/blob/fff639871e076110fc09c4cc43353c82a1b15ef1/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors) | Gemma terms |
 | `ltx-2.3_text_projection_bf16.safetensors` | LTX text projection | [Kijai/LTX2.3_comfy](https://huggingface.co/Kijai/LTX2.3_comfy/blob/1c032c322c3db1992a66a7690d414b4fe8e686d0/text_encoders/ltx-2.3_text_projection_bf16.safetensors) | LTX-2 Community License |
@@ -105,6 +106,8 @@ These names occur in `nodes_super.py`, `ltx_graph.py`, the optional face script 
 | DiffSynth | [Licence](https://github.com/modelscope/DiffSynth-Studio/blob/main/LICENSE) | Apache-2.0 upstream; exact DiffSynth revision unknown |
 | GVHMR | [Licence](https://github.com/zju3dv/GVHMR/blob/main/LICENSE) | **Education, research and non-profit only**; retain notices |
 | gsplat | [Licence](https://github.com/nerfstudio-project/gsplat/blob/main/LICENSE) | Apache-2.0 upstream; installed native-kernel notices unknown |
+| Blender (optional, camera file import) | [Licence](https://www.blender.org/about/license/) | GPL; run as a separate program, not distributed |
+| ComfyUI-Frame-Interpolation and RIFE weights (optional, Finish) | [Pack](https://github.com/Fannovel16/ComfyUI-Frame-Interpolation), [RIFE](https://github.com/hzwer/Practical-RIFE) | MIT |
 | Three.js and TransformControls | `web/lib/THREE_LICENSE` | MIT notice present locally |
 | ComfyUI and custom nodes | Sources in [Install](INSTALL.md#paths-and-repository-revisions) | Measured commits in Install; complete notice inventory unknown |
 | TSOG codecs/player | [Project](https://github.com/OpsiClear-4DGS/tsog) | Apache-2.0 stated by project; measured ROOT/repo/third_party/tsog commit in Install; trainer-nested commit unknown |

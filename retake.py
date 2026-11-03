@@ -28,6 +28,7 @@ from .config import GPUS, REDIRECTOR, RD_PY
 
 CAT = "Reshoot 4D"
 SIZES = {"480p": (480, 832), "720p": (720, 1280)}   # (short, long) side; ReDirector was trained at 480p, 720p needs ~21 GB
+P_LENS_AFTER = True   # lens changes: Camera FX after the re-shoot (see build_paths)
 
 
 def build_paths(td, state, n=81):
@@ -43,8 +44,7 @@ def build_paths(td, state, n=81):
     C = np.stack([cap.pose(sc, f) for f in fs])
     meta = S.scene_meta(td, json.loads((Path(td) / "preview_meta.json").read_text()))
     basis = [np.array(meta[k], float) for k in ("up", "front", "side")]; up = basis[0]
-    V = cap.geometry(); Vm = V[fs[n // 2]]; ax = np.linalg.svd(Vm - Vm.mean(0), full_matrices=False)[2][0]
-    m = 1.7 / float((Vm @ ax).max() - (Vm @ ax).min())   # metres per capture unit
+    m = S.metres_per_unit(cap)   # metres per capture unit
     run = Path(td).parent if (Path(td).parent / "clip.json").is_file() else Path(td).parent.parent
     secs = float(json.loads((run / "clip.json").read_text())["seconds"]) if (run / "clip.json").is_file() else F / 25.0
     dur = float(state["duration"])   # the move is stretched over the retake (the whole source clip, in real time)
@@ -59,8 +59,16 @@ def build_paths(td, state, n=81):
     T[:, :3, :3] = T[:, :3, :3] @ Q; T[:, :3, 3] += C[0][:3, 3] - T[0][:3, 3]
     rel = lambda X: np.einsum("ij,njk->nik", np.linalg.inv(X[0]), X)
     cond, targ = rel(C), rel(T); cond[:, :3, 3] *= m; targ[:, :3, 3] *= m
-    return dict(seconds=secs, frames=fs, video=video, K=K, W=W, H=H, cond=cond, targ=targ, metres_per_unit=m,
-                info=f"travel {np.linalg.norm(targ[-1, :3, 3]):.2f} m, first key {d_eye:.2f} m / {d_rot:.1f} deg off the source camera")
+    # the keys' lens as focal length relative to the first key (the real lens, framed for the shot): 2 = twice the focal length
+    fov = np.radians([r[8] for r in rows]); zoom = np.tan(fov[0] / 2) / np.tan(fov / 2)
+    # the re-shoot holds the move's widest lens (it only has to generate what lies outside the real frame); the rest of the zoom is a
+    # crop that Camera FX applies afterwards (post_zoom), so a lens change never needs a new render and is never applied twice
+    retake_zoom = np.full_like(zoom, min(1.0, float(zoom.min()))) if P_LENS_AFTER else zoom
+    post_zoom = zoom / retake_zoom
+    lens = f", lens x{zoom.min():.2f}-x{zoom.max():.2f}" if np.ptp(zoom) > 1e-3 else ""
+    return dict(seconds=secs, frames=fs, video=video, K=K, W=W, H=H, cond=cond, targ=targ, zoom=zoom, retake_zoom=retake_zoom, post_zoom=post_zoom,
+                metres_per_unit=m,
+                info=f"travel {np.linalg.norm(targ[-1, :3, 3]):.2f} m{lens}, first key {d_eye:.2f} m / {d_rot:.1f} deg off the source camera")
 
 
 def _first_frame(video, out, w, h):
@@ -204,20 +212,20 @@ class Sam3dbxRetakePhotoreal:
     and the real first frame as guides."""
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"retake": ("STRING", {"forceInput": True, "tooltip": "From Retake"}),
+        return {"required": {"retake": ("STRING", {"forceInput": True, "tooltip": "The Retake job file (Retake's retake output): its video, camera path and settings"}),
                              "seed": ("INT", {"default": 11, "min": 0, "max": 2**31 - 1, "control_after_generate": False}),
                              "start_strength": ("FLOAT", {"default": 0.35, "min": 0.1, "max": 1.0, "step": 0.05,
-                                                          "tooltip": "Where LTX starts on its schedule. 0.35 keeps the retake's pose and camera; 0.5 starts changing the pose"}),
-                             "control_strength": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True, "tooltip": "How closely LTX follows the retake's edges"}),
-                             "control_lora_strength": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.5, "step": 0.05, "advanced": True}),
+                                                          "tooltip": "Union control: how much LTX may redraw the retake. 0.35 keeps its pose and camera; 0.5 starts changing the pose"}),
+                             "control_strength": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True, "tooltip": "Union control: how closely LTX follows the outline (edges) of the retake"}),
+                             "control_lora_strength": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.5, "step": 0.05, "advanced": True, "tooltip": "Union control: strength of the edge-guidance model itself (control_strength sets how strongly the edges guide)"}),
                              "first_frame_strength": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True,
-                                                                "tooltip": "The real first frame as the start guide (identity)"}),
-                             "detailer": ("BOOLEAN", {"default": True, "advanced": True, "tooltip": "Detailer LoRA in the final stage"})},
+                                                                "tooltip": "Union control: how strongly the source video's first frame guides the person's look in the opening frames"}),
+                             "detailer": ("BOOLEAN", {"default": True, "advanced": True, "tooltip": "Both passes: an add-on model that sharpens fine detail in the final full-resolution stage"})},
                 "optional": {"pass_type": (["crossview", "union control"], {"default": "crossview",
                                            "tooltip": "crossview: the real video, warped along the move, guides LTX (sharper, holds large moves). "
-                                                      "union control: the retake's edges guide LTX (the start, control and detailer settings above)"}),
+                                                      "union control: the retake's outline (edges) guides LTX, set by the start, control and first-frame settings above"}),
                              "crossview_start": ("FLOAT", {"default": 0.7, "min": 0.3, "max": 1.0, "step": 0.05, "advanced": True,
-                                                          "tooltip": "CrossView: where LTX starts on its schedule over the retake. 1.0 ignores the retake"})},
+                                                          "tooltip": "CrossView: how much LTX may redraw the retake. Higher allows larger changes; 1.0 ignores the retake image"})},
                 "hidden": {"unique_id": "UNIQUE_ID"}}
     RETURN_TYPES = ("IMAGE", "FLOAT"); RETURN_NAMES = ("frames", "fps")
     OUTPUT_TOOLTIPS = ("The photoreal shot at 1024x1792 (or 1792x1024)", "Frame rate: the clip plays in real time")
@@ -249,6 +257,7 @@ class Sam3dbxRetakePhotoreal:
         return {"result": ([P + dec, 0], fps), "expand": g}
 
 
-NODE_CLASS_MAPPINGS = {"Sam3dbxRetake": Sam3dbxRetake, "Sam3dbxRetakeRun": Sam3dbxRetakeRun, "Sam3dbxRetakePhotoreal": Sam3dbxRetakePhotoreal}
+NODE_CLASS_MAPPINGS = {"Sam3dbxRetake": Sam3dbxRetake, "Sam3dbxRetakeRun": Sam3dbxRetakeRun, "Sam3dbxRetakePhotoreal": Sam3dbxRetakePhotoreal,
+                       "Sam3dbxLensZoom": CV.LensZoom}
 NODE_DISPLAY_NAME_MAPPINGS = {"Sam3dbxRetake": "Reshoot 4D: Retake", "Sam3dbxRetakeRun": "Reshoot 4D: Retake (run)",
-                              "Sam3dbxRetakePhotoreal": "Reshoot 4D: Photoreal Pass"}
+                              "Sam3dbxRetakePhotoreal": "Reshoot 4D: Photoreal Pass", "Sam3dbxLensZoom": "Reshoot 4D: Lens Zoom"}

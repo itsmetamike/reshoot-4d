@@ -56,9 +56,35 @@ def camera(job, LW, LH):
     return keys, pz, hfov, pick
 
 
+class LensZoom:
+    """The keys' lens on the warp: CrossViewWarp renders every target with the source focal, so each frame is scaled about its centre
+    by its focal ratio (a pure focal change is exactly that). Zooming out leaves an unseen border, filled magenta like the warp's holes."""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"images": ("IMAGE",), "zoom": ("STRING", {"default": "[]", "tooltip": "Focal ratio per frame, JSON list"})}}
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "run"
+    CATEGORY = "Reshoot 4D/advanced"
+
+    def run(self, images, zoom):
+        import torch
+        import torch.nn.functional as F
+        z = torch.tensor(json.loads(zoom), dtype=torch.float32)
+        B = images.shape[0]; z = z[torch.linspace(0, len(z) - 1, B).round().long()]   # one ratio per frame
+        theta = torch.zeros(B, 2, 3); theta[:, 0, 0] = theta[:, 1, 1] = 1 / z
+        x = images.permute(0, 3, 1, 2).float()
+        grid = F.affine_grid(theta, list(x.shape), align_corners=False)
+        out = F.grid_sample(x, grid, mode="bilinear", padding_mode="zeros", align_corners=False)
+        seen = F.grid_sample(torch.ones_like(x[:, :1]), grid, mode="nearest", padding_mode="zeros", align_corners=False)
+        magenta = torch.tensor([1.0, 0.0, 1.0]).view(1, 3, 1, 1)
+        return ((out * seen + magenta * (1 - seen)).permute(0, 2, 3, 1).to(images.dtype),)
+
+
 def build(job, LW, LH, fps, seed, start, detailer=True):
     """The CrossView graph (API format) and its decode node id."""
     keys, pz, hfov, frames = camera(job, LW, LH)
+    z = np.load(job["npz"]); zoom = z["retake_zoom"] if "retake_zoom" in z.files else (z["zoom"] if "zoom" in z.files else None)   # the lens the re-shoot holds
     inp = Path(folder_paths.get_input_directory()); name = f"{job['tag']}_cvsrc.mp4"
     w = cv2.VideoWriter(str(inp / name), cv2.VideoWriter_fourcc(*"mp4v"), fps, (LW, LH))
     for f in frames:
@@ -74,6 +100,8 @@ def build(job, LW, LH, fps, seed, start, detailer=True):
                  depth_ratio=6.0, smooth_depth=False, invert_depth=False, roll_lock=True, pivot_override=True, pivot_x=0.0, pivot_y=0.0, pivot_z=round(pz, 4),
                  use_keyframes=True, frame_count=0, keyframes=json.dumps(keys), interp_motion="smooth", interpolation="smooth", keep_source_aim=True,
                  moge_geometry=o(moge), preview_size=512, frame_index=1)
+    if zoom is not None and (np.ptp(zoom) > 1e-3 or abs(float(zoom[0]) - 1) > 1e-3):
+        warp = g.add("Sam3dbxLensZoom", "Lens along the move", images=o(warp, 0), zoom=json.dumps([round(float(v), 4) for v in zoom]))
     unet = g.add("UNETLoader", "LTX model", unet_name=sg.MODELS["unet"], weight_dtype="default")
     model = o(g.add("LTXICLoRALoaderModelOnly", "CrossView IC-LoRA", model=o(unet), lora_name=LORA, strength_model=1.0))
     clip = o(g.add("DualCLIPLoader", "Gemma + projection", clip_name1=sg.MODELS["gemma"], clip_name2=sg.MODELS["proj"], type="ltxv", device="default"))

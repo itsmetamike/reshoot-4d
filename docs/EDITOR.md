@@ -41,19 +41,41 @@ Camera navigation and key transforms depend on focus. Click the viewport before 
 
 Use start/end (Home / End), frame step (Left / Right) and previous/next-key (Shift+Left / Shift+Right) to inspect exact moments. Space toggles playback. J/K/L provide reverse, stop and forward shuttle. Loop and preview speed help review a move; preview speed is separate from the capture's authored performance speed.
 
-The camera lane shows keys; the capture lane shows scene time and freeze bands. Shift-select keys and drag to retime them together. Whole-shot ease remaps camera time across the shot.
+The editor has two clocks. **Shot time** is the position in your new camera move (the camera lane, with its keys). **Capture time** is the moment of the original performance shown at that point (the capture lane); freeze bands mark where the performance pauses while the camera keeps moving. Shift-select keys and drag to retime them together. Whole-shot ease remaps camera time across the shot.
 
 ## Space, interpolation and time
 
-**Locked** keeps the camera and look-at point in the setting. **With her** makes them travel with the tracked person.
+**Fixed in background** keeps the camera and look-at point in place in the background scene. **Follows subject** makes them travel with the tracked person.
 
 Choose orbit or spline interpolation between keys. Circular orbit is available as a preset. Whole-shot ease smooths the authored path.
 
 Bullet-time authoring holds capture time while camera time advances in the editor preview. See the Retake channel limits below.
 
+## Camera settings
+
+Each key has a **Camera** section: **Aperture** (f/0.7 to f/22), **Focus** (a distance in metres, or `subject` to follow the person), **Vignette** and **Grain** (0 to 1). Leave a field blank and the value carries on from the keys around it, so a rack focus is two keys with different focus and an aperture pull is two keys with different apertures. Focus moves between keys in diopters, like a focus pull. **Shot > Camera FX > Zoom aims at** chooses where lens changes zoom to: the subject (kept in frame) or the centre (a true lens).
+
+These settings and the keys' lens are applied by the Camera FX node after the reshoot, so changing them needs no new Retake. A lens wider than the Retake was rendered at needs new picture: queue the Retake again.
+
+## Focus preview, lens character and shutter
+
+The camera view previews depth of field from the keys' aperture and focus: points away from the focus plane grow and thin out like bokeh (a rough guide; Camera FX renders the real thing). Turn it off in **Shot > Camera FX > Preview focus**. **Alt+click** a point in the camera view to set the focus of the key at the playhead to that distance.
+
+**Shot > Camera FX** also holds the shot's lens character, applied by Camera FX: **Distortion** (+ barrel, - pincushion), **Chromatic ab.**, **Bloom**, **Halation** and **Anamorphic** (oval bokeh, 1 = round), and the **Shutter** angle that Finish turns into motion blur (180 = film look). Blank = off.
+
+## Camera files
+
+**Import** also takes `.fbx`, `.abc`, `.usd`, `.usda`, `.usdc` and `.usdz`. Blender reads the file in the background (install it and set `blender` in `config.local.json` if it isn't on PATH). If the file holds several cameras, pick one. The camera is baked at every frame (parents, constraints and caches included) and placed so its first frame sits on the clip's real camera, locked in the setting, at real scale (her height = 1.7 m). Roll and focal length carry over; focus distance and f-stop land on the keys. Long files are thinned to at most 240 keys.
+
+If the file holds several cameras, **All cameras: save each as a path** downloads one path file per camera (multicam) and loads the first; import the others when you want them.
+
+**Export** saves the move as a path (`.json`) or as an animated camera: `.usdc` (pose, lens, focus and f-stop), `.fbx` (pose and lens) or `.abc` (pose). It is in metres, z-up, with the subject at the origin, and includes the real source camera (`SourceCamera`) and a `Subject` marker. Re-importing an export gives the same move. Exported focus and f-stop change linearly between keys; key easing and whole-shot ease apply to the pose and lens only.
+
+Limits: Alembic files don't carry animated focal length or focus through Blender (pose only); FBX has no f-stop; only import files you trust (a USD file can reference other files on the machine running ComfyUI).
+
 ## Retake channel limits
 
-Retake samples camera position, target and roll. It selects source frames uniformly and uses source-camera intrinsics. Editor freezes, performance rewinds and per-key lens animation are not transferred to the generated retake.
+Retake samples camera position, target and roll. It selects source frames uniformly and uses source-camera intrinsics. For a lens change, Retake renders the whole move at its widest field of view and Camera FX crops those frames to make the zoom, so a zoom or dolly zoom needs no extra render (a long zoom crops in, so it softens a little). Editor freezes and performance rewinds are not transferred to the generated retake.
 
 Start the move near the real source camera. Begin with a modest arc or push; unseen regions can change in generated footage.
 

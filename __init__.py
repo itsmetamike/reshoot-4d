@@ -249,7 +249,7 @@ class Sam3dbxCameraDirector:
     def VALIDATE_INPUTS(cls, capture, **kw):
         return True   # a shared workflow names a capture from another machine; a wired Capture node replaces it, run() reports a missing one
     RETURN_TYPES = ("STRING", "STRING", "STRING"); RETURN_NAMES = ("train_dir", "camera_path", "info")
-    OUTPUT_TOOLTIPS = ("The capture this move was made on", "The camera move, for Render Shot or Photoreal Prep", "Length, frame rate and key count")
+    OUTPUT_TOOLTIPS = ("The capture this move was made on", "The camera move (camera path file), for Retake", "Length, frame rate and key count")
     FUNCTION = "run"; CATEGORY = CAT
 
     def run(self, capture, mode, director_state, train_dir=None):
@@ -471,3 +471,6 @@ NODE_DISPLAY_NAME_MAPPINGS.update(nodes_super.NODE_DISPLAY_NAME_MAPPINGS)
 from . import retake   # noqa: E402  (ReDirector retake + its photoreal pass)
 NODE_CLASS_MAPPINGS.update(retake.NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(retake.NODE_DISPLAY_NAME_MAPPINGS)
+from . import camera_fx   # noqa: E402  (lens and optical effects on a finished clip)
+NODE_CLASS_MAPPINGS.update(camera_fx.NODE_CLASS_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(camera_fx.NODE_DISPLAY_NAME_MAPPINGS)

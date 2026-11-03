@@ -410,7 +410,7 @@ class Sam3dbxPhotorealShoot:
     and to the person by the identity anchors. The prompt is written from the video when subject and scene are empty."""
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"shot": ("STRING", {"forceInput": True, "tooltip": "Prepared shot from Photoreal Prep"}),
+        return {"required": {"shot": ("STRING", {"forceInput": True, "tooltip": "Prepared shot from Splat Photoreal Prep (legacy)"}),
                              "seed": ("INT", {"default": 11, "min": 0, "max": 2**31 - 1, "control_after_generate": True}),
                              "control_strength": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.05, "tooltip": "How closely LTX follows the capture's depth (pose and camera)"}),
                              "control_lora_strength": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.5, "step": 0.05, "advanced": True, "tooltip": "Strength of the depth-control LoRA"}),

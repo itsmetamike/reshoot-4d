@@ -23,7 +23,10 @@ video = rearrange(torch.stack(frames), "T C H W -> C T H W")
 # intrinsics normalised to the cropped frame, principal point moved with the crop
 fx, fy = K[0, 0] * sc / Wt, K[1, 1] * sc / Ht; cx, cy = (K[0, 2] * sc - x0) / Wt, (K[1, 2] * sc - y0) / Ht
 intr = torch.tensor([0, fx, fy, cx, cy, 0, 0], dtype=torch.float32).unsqueeze(0).repeat(N, 1)
-cam = lambda X: torch.cat([intr, rearrange(torch.as_tensor(X[:, :3], dtype=torch.float32), "b c d -> b (c d)")], 1)
+# the target cameras carry the keys' lens: focal scaled per frame about the same principal point (older jobs have no zoom)
+zoom = torch.as_tensor(z["retake_zoom"] if "retake_zoom" in z.files else (z["zoom"] if "zoom" in z.files else np.ones(N)), dtype=torch.float32)
+intr_t = intr.clone(); intr_t[:, 1:3] *= zoom[:, None]
+cam = lambda X, I=intr: torch.cat([I, rearrange(torch.as_tensor(X[:, :3], dtype=torch.float32), "b c d -> b (c d)")], 1)
 pipe = WanVideoPipeline.from_pretrained(torch_dtype=torch.bfloat16, device="cuda", redirect_common_files=False, model_configs=[
     ModelConfig(model_id=cfg.model_path, origin_file_pattern=p, offload_device="cpu", skip_download=True) for p in
     ["diffusion_pytorch_model*.safetensors", "models_t5_umt5-xxl-enc-bf16.pth", "Wan2.1_VAE.pth", "models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth"]],
@@ -42,7 +45,7 @@ def progress(it):
 
 
 v = pipe(prompt=job["prompt"], negative_prompt=cfg.eval.negative_prompt, first_frame=video.unsqueeze(0)[:, :, 0], cond_video=video.unsqueeze(0),
-         traj=cam(z["targ"]).unsqueeze(0).cuda(), traj_cond=cam(z["cond"]).unsqueeze(0).cuda(), height=Ht, width=Wt, num_frames=N,
+         traj=cam(z["targ"], intr_t).unsqueeze(0).cuda(), traj_cond=cam(z["cond"]).unsqueeze(0).cuda(), height=Ht, width=Wt, num_frames=N,
          cfg_scale=float(job["cfg"]), seed=int(job["seed"]), tiled=False, num_inference_steps=steps, progress_bar_cmd=progress)
 save_video(v, job["out"], fps=N / float(z["seconds"]))
 print("DONE", job["out"], "peak GB", round(torch.cuda.max_memory_allocated() / 1e9, 1), flush=True)

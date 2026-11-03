@@ -8,6 +8,7 @@ Each value comes from config.local.json next to this file, then an environment v
                                                      training run while the big one generates
   cuda_arch     SAM3DBX_CUDA_ARCH   8.6              TORCH_CUDA_ARCH_LIST for gsplat's JIT (8.6 = RTX 30, 8.9 = RTX 40, 12.0 = RTX 50)
   redirector    SAM3DBX_REDIRECTOR  root/redirector  ReDirector checkout with its own .venv and models/ (Retake node)
+  blender       SAM3DBX_BLENDER     blender on PATH  Blender executable, run headless to read .fbx/.abc/.usd camera files
 """
 import json, os
 from pathlib import Path
@@ -35,5 +36,6 @@ HARMONIZER = ROOT / "harmonizer"
 REDIRECTOR = Path(_get("redirector", str(ROOT / "redirector")))
 RD_PY = str(REDIRECTOR / ".venv" / "bin" / "python")
 CUDA_ARCH = str(_get("cuda_arch", "8.6"))
+BLENDER = str(_get("blender", "blender"))
 _big = str(_get("gpu_big", "0"))
 GPUS = {"big": _big, "small": str(_get("gpu_small", _big))}   # big card: view generation, LTX, ReDirector; small card: depth and splat renders

@@ -14,14 +14,30 @@ Watch the [explainer](site/media/explainer.mp4) (35 s) and the [walkthrough](sit
 
 | Node | What it does |
 | --- | --- |
-| **Capture** | Turns a video of a person into a 4D capture of them in their setting and solves the real source camera. |
-| **Virtual Camera** | Opens the 4D camera editor on the node. Keyframe a new camera over the moving capture; the path saves with the workflow. |
-| **Retake** | Reshoots the whole source video along your path (ReDirector). |
+| **Capture** | Turns a video of a person into a 4D capture: their motion in 3D over time, the background scene around them, and an estimate of where the original camera stood and how it moved. |
+| **Virtual Camera** | Opens the 4D camera editor on the node. Set camera keyframes (position, aim and lens at chosen moments) over the moving capture; the editor moves smoothly between them and the path saves with the workflow. |
+| **Retake** | Re-renders the whole source video from your new camera path (ReDirector). Its output, the retake, is the draft the Photoreal Pass finishes. |
 | **Photoreal Pass** | LTX 2.3 renders the final frames from the retake, guided by the real video and a depth warp of it along your path (CrossView-Warp IC-LoRA). |
+| **Camera FX** | Applies the keys' lens and camera settings to the finished frames: zoom, focus and aperture (depth of field), vignette and grain. Changing them needs no new render. |
+| **Finish** | Optional: a standard frame rate (24 to 60 fps, RIFE in-betweens), motion blur from a shutter angle, a resize to 1080p, 1440p or 4K, and the source audio. |
 
 ![The Reshoot 4D workflow in ComfyUI](site/media/workflow_graph.jpg)
 
 Load [the Reshoot 4D workflow](workflows/Reshoot%204D.json) and follow the [Workflow guide](docs/WORKFLOW.md).
+
+## Terms
+
+- **4D capture.** The person's 3D shape over time (3D plus time), the background scene and the estimated original camera. The editor shows it as a coloured mannequin (quick mode) or a 4D Gaussian splat (4DGS mode: the person as many soft coloured points, trained from generated views).
+- **Source camera.** The camera that filmed your video, estimated from the footage: where it stood, where it pointed and its field of view. Distances are approximate and assume a 1.7 m tall person.
+- **Keyframe (key).** The camera's position, aim, lens and settings at one moment. The editor moves the camera smoothly between keys.
+- **Shot time and capture time.** Shot time is the position in your new camera move. Capture time is the moment of the original performance shown at that point.
+- **Retake.** The first re-render of your video from the new camera. The Photoreal Pass turns it into the final frames.
+- **Aperture (f-stop) and rack focus.** A lower f-stop gives shallower focus. A rack focus moves the sharp distance during the shot, for example from the background to the person.
+- **Dolly zoom.** The camera moves back while the lens zooms in (or the reverse): the person stays the same size while the background grows or shrinks.
+- **Shutter angle.** How much of each frame's time the shutter is open, which sets motion blur: 180° is half the frame time (the film look), 0 is none.
+- **Lens character.** Distortion (barrel bulge), chromatic aberration (colour fringes towards the edges), bloom (a glow around highlights), halation (a warm red glow around bright edges, as on film) and anamorphic bokeh (oval out-of-focus highlights).
+- **Depth and matte passes.** An image of each pixel's distance and a mask of the person, for compositing.
+- **RIFE.** An open model that generates in-between frames, used for higher frame rates and motion blur.
 
 ## Results
 
@@ -61,6 +77,11 @@ Footage from Pexels, see [Credits](docs/CREDITS.md).
 - **A timeline built for shots.** Play, shuttle with J / K / L, step frames and jump between keys. Shift-select keys to move, rotate or retime them together.
 - **Presets.** Start from an arc, push, crane, orbit or bullet-time move, then edit the keys.
 - **Portable camera paths.** Paths export relative to the source camera, so a move made on one capture replays on another.
+- **Camera files.** Import a camera from `.fbx`, `.abc` or `.usd`: pick one if the file holds several, and the move starts on the source camera at approximate real scale (assuming a 1.7 m person), with its lens, roll, focus and aperture.
+- **Camera settings per key.** Aperture, focus (a distance or the subject), vignette and grain on each key, for rack focus, aperture pulls and zooms. Camera FX applies them after the reshoot.
+- **Focus in the viewport.** The camera view previews the keys' focus and aperture; Alt+click anything to focus the key on it.
+- **Lens character.** Per shot: distortion, chromatic aberration, bloom, halation, anamorphic (oval) bokeh and a shutter angle for motion blur.
+- **Camera export.** Save the move as an `.fbx`, `.usd` or `.abc` camera (with the real source camera and a subject marker) for Blender, Nuke or Unreal. Import a file with several cameras and each can be saved as its own path.
 
 See the [Editor guide](docs/EDITOR.md).
 
@@ -76,6 +97,8 @@ bash reshoot-4d/scripts/install_redirector.sh
 ```
 
 Then follow [Install](docs/INSTALL.md) for the Capture environments and models, restart ComfyUI and find the nodes under **Reshoot 4D**.
+
+Optional: [Blender](https://www.blender.org/download/) to import `.fbx` / `.abc` / `.usd` cameras, and [ComfyUI-Frame-Interpolation](https://github.com/Fannovel16/ComfyUI-Frame-Interpolation) for Finish's frame rate. See [Install](docs/INSTALL.md#optional-camera-files-and-finishing).
 
 ## Docs
 

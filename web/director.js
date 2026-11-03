@@ -45,7 +45,8 @@ function sceneAuto(state, keys, t) {
   if (end === "pingpong") { x = x % 2; return x <= 1 ? x : 2 - x; }
   return Math.min(1, x);
 }
-let TRACK = null;   // {head: [[x,y,z]...], body: [...]} per capture frame, from the capture's body mesh
+let TRACK = null;
+const CAMFILE = /\.(fbx|abc|usd|usda|usdc|usdz)$/i;   // camera files the Import button sends to Blender (camfile.py)   // {head: [[x,y,z]...], body: [...]} per capture frame, from the capture's body mesh
 function trackAt(name, scene) {
   const pts = TRACK[name], x = Math.min(1, Math.max(0, scene)) * (pts.length - 1), i = Math.min(Math.floor(x), pts.length - 2), f = x - i;
   return pts[i].map((a, k) => a + (pts[i + 1][k] - a) * f);
@@ -100,7 +101,8 @@ function sample(state, t, dist0) {
 const VERT = `
 attribute vec3 aVel; attribute float aTime; attribute float aDur; attribute float aOpa;
 uniform float uScene; uniform float uUseVel; uniform float uPx; uniform float uSize;
-varying vec3 vColor; varying float vAlpha;
+uniform float uDof; uniform float uCocA; uniform float uFocusU;
+varying vec3 vColor; varying float vAlpha; varying float vBlur;
 void main() {
   vec3 p = position + (uUseVel > 0.5 ? aVel * (uScene - aTime) : vec3(0.0));
   float d = (uScene - aTime) / aDur;
@@ -108,12 +110,15 @@ void main() {
   vColor = color;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = clamp(uPx * uSize / -mv.z, 1.0, 18.0);
+  float z = max(-mv.z, 1e-4);
+  vBlur = uDof > 0.5 ? min(uCocA * abs(z - uFocusU) / z, 40.0) : 0.0;   // depth-of-field preview: blur radius in px
+  gl_PointSize = clamp(uPx * uSize / z, 1.0, 18.0) + 2.0 * vBlur;
 }`;
 const FRAG = `
-varying vec3 vColor; varying float vAlpha;
+varying vec3 vColor; varying float vAlpha; varying float vBlur;
 void main() {
   vec2 c = gl_PointCoord - 0.5; if (dot(c, c) > 0.25 || vAlpha < 0.25) discard;
+  if (vBlur > 0.5 && fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) > 1.0 / (1.0 + 0.06 * vBlur * vBlur)) discard;   // bigger, thinner discs
   gl_FragColor = vec4(vColor, 1.0);
 }`;
 
@@ -282,7 +287,7 @@ async function importToNode(node, text) {
   const cr = Array.isArray(d.cam) && d.cam.length === keys.length && camRel(meta, st.follow);
   if (st.space_dir !== rr.dir && cr) keys.forEach((k, i) => cr.from(d.cam[i], k));   // camera-relative: from this clip's real camera
   else if (st.space_dir !== rr.dir) {
-    if (!Array.isArray(d.rel) || d.rel.length !== keys.length) throw new Error("this path was made on another capture and has no portable copy: export it again from the Director");
+    if (!Array.isArray(d.rel) || d.rel.length !== keys.length) throw new Error("this path was made on another capture and has no portable copy: export it again from the Virtual Camera editor");
     const add = (a, b, k) => a.map((x, i) => x + b[i] * k), dot = (a, b) => a.reduce((t, x, i) => t + x * b[i], 0);
     const c = meta.centre, up = meta.up; let f = meta.front, sd = meta.side;
     if (meta.source) {
@@ -358,11 +363,11 @@ async function openDirector(node) {
   const inDur = el("input", { type: "number", step: "0.1", min: "0.5", value: state.duration, title: "Shot length (s)" });
   const inFps = el("input", { type: "number", step: "1", min: "8", value: state.fps, title: "Frames per second of the shot" });
   const inSpeed = el("input", { type: "number", step: "0.05", min: "0", value: state.speed ?? 1,
-    title: "How fast the capture plays (1 = real time)" });
+    title: "How fast the captured performance plays in the editor preview (1 = real time). The Retake always plays the source video in order" });
   const aspectSel = el("select", { title: "Shot aspect (a new shot takes the input clip's)" }, Object.keys(ASPECTS).map((x) => el("option", {}, x)));
   aspectSel.onchange = () => { state.aspect = aspectSel.value; ASPECT = ASPECTS[state.aspect];
     for (const c of [shot, shotProxy]) { c.aspect = ASPECT; c.updateProjectionMatrix(); } rebuild(); };
-  const endSel = el("select", { title: "When the shot is longer than the capture" }, ["pingpong", "loop", "hold"].map((x) => el("option", {}, x)));
+  const endSel = el("select", { title: "Editor preview: what the performance does when the shot is longer than the capture (the Retake plays the source in order)" }, ["pingpong", "loop", "hold"].map((x) => el("option", {}, x)));
   endSel.value = state.scene_end || "pingpong"; endSel.onchange = () => rebuild();
   const pathSel = el("select", { title: "orbit: swings round the look-at point (round orbits from few keys). spline: a straight 3D curve through the keys" },
     ["orbit", "spline"].map((x) => el("option", {}, x)));
@@ -370,27 +375,46 @@ async function openDirector(node) {
   const easeSel = el("select", { title: "per key: each key's own ease (smooth stops the camera at every key). whole shot: one ease in and one ease out over the whole move, keys in between passed at speed" },
     [["per key", "keys"], ["whole shot", "smooth"]].map(([t, v]) => el("option", { value: v }, t)));
   easeSel.value = state.shot_ease === "smooth" ? "smooth" : "keys"; easeSel.onchange = () => rebuild();
-  const settingSel = el("select", { title: "The clip's real setting around the person: in the editor view only (the shot stays clean), everywhere, or hidden", disabled: "" },
+  const settingSel = el("select", { title: "The background scene around the person, from the video: in the editor view only (the shot stays clean), everywhere, or hidden", disabled: "" },
     [["editor view", "editor"], ["editor + shot", "both"], ["off", "off"]].map(([t, v]) => el("option", { value: v }, t)));
   settingSel.value = ["editor", "both", "off"].includes(state.show_setting) ? state.show_setting : "editor";
   settingSel.onchange = () => { state.show_setting = settingSel.value; settingSel.blur(); };
-  const followSel = el("select", { title: "with her: the camera travels with her through the setting, as the source camera did. locked: the camera and its look-at point stay put in the setting" },
-    [["with her", "on"], ["locked", "off"]].map(([t, v]) => el("option", { value: v }, t)));
+  const zoomAimSel = el("select", { title: "Lens changes are applied after the re-shoot. subject: a zoom aims at the person and keeps them in frame. centre: a true lens, zooming to the middle" },
+    [["subject", "the subject"], ["centre", "the centre"]].map(([v, t]) => el("option", { value: v }, t)));
+  zoomAimSel.value = state.zoom_aim || "subject"; zoomAimSel.onchange = () => { state.zoom_aim = zoomAimSel.value; };
+  const fxInputs = [];
+  const fxNum = (get, set, min, max, step, title) => {   // a shot-wide Camera FX value; blank = off
+    const i = el("input", { type: "number", min, max, step, placeholder: "-", title, value: get() ?? "" });
+    i.onchange = () => { const v = i.value.trim(); set(v === "" ? undefined : Math.min(max, Math.max(min, +v))); };
+    i.refresh = () => { i.value = get() ?? ""; }; fxInputs.push(i);
+    return i;
+  };
+  const lfx = (n) => fxNum(() => state.lens_fx?.[n], (v) => { state.lens_fx = { ...(state.lens_fx || {}) }; if (v === undefined) delete state.lens_fx[n]; else state.lens_fx[n] = v; },
+    ...{ distortion: [-0.3, 0.3, 0.01, "+ barrel (wide-angle bulge), - pincushion"], chromatic_aberration: [0, 1, 0.05, "colour fringing towards the edges"],
+         bloom: [0, 1, 0.05, "highlights spread into a soft glow"], halation: [0, 1, 0.05, "warm red glow around bright edges, as on film"],
+         anamorphic: [1, 2, 0.05, "oval bokeh: out-of-focus blur this much taller than wide (1 = round)"] }[n]);
+  const shutterIn = fxNum(() => state.shutter_angle, (v) => { state.shutter_angle = v; }, 0, 360, 15, "Motion blur in Finish: 180 = film look, 0 or blank = off");
+  const dofPrevBox = el("input", { type: "checkbox", style: "width:auto;justify-self:start", title: "Show the keys' focus and aperture in the camera view (rough preview)" });
+  dofPrevBox.checked = true; dofPrevBox.onchange = () => { dofPreview = dofPrevBox.checked; };
+  const followSel = el("select", { title: "follows subject: the camera travels with the person through the background scene, as the source camera did. fixed in background: the camera and its look-at point stay put in the setting" },
+    [["follows subject", "on"], ["fixed in background", "off"]].map(([t, v]) => el("option", { value: v }, t)));
   followSel.value = state.follow === false ? "off" : "on"; followSel.onchange = () => { state.follow = followSel.value === "on"; rebuild(); };
   const bSnap = B("Off", "Gizmo moves in 5 % steps of the capture distance and turns in 15° steps (hold Ctrl to flip while dragging)", () => { snapOn = !snapOn; applySnap(); });
   const bSave = IB("check", "Save & close", () => close(true), "Save & close", { show: true, cls: "primary" });
   const bCancel = IB("close", "Cancel (Esc)", () => close(false), "Cancel");
-  const fileIn = el("input", { type: "file", accept: ".json,application/json", style: "display:none" });
-  fileIn.onchange = async () => { const f = fileIn.files[0]; fileIn.value = ""; if (f) importPath(await f.text()); };
-  const bImport = IB("import", "Import camera path (.json)", () => fileIn.click(), "Import");
-  const bExport = IB("export", "Export camera path (.json)", () => exportPath(), "Export");
+  const fileIn = el("input", { type: "file", accept: ".json,application/json,.fbx,.abc,.usd,.usda,.usdc,.usdz", style: "display:none" });
+  fileIn.onchange = async () => { const f = fileIn.files[0]; fileIn.value = ""; if (f) CAMFILE.test(f.name) ? importCamFile(f) : importPath(await f.text()); };
+  const bImport = IB("import", "Import a camera path (.json) or a camera from .fbx / .abc / .usd", () => fileIn.click(), "Import");
+  const bExport = IB("export", "Export the camera as a path (.json) or a camera file (.fbx / .usd / .abc)", () => exportCamFile(), "Export");
   const bMin = IB("min", "Minimise and save to the node", () => minimise(true), "–");
   const bUndo = IB("undo", "Undo (Cmd/Ctrl+Z)", () => undo()), bRedo = IB("redo", "Redo (Shift+Cmd/Ctrl+Z)", () => redo());
   const shotPop = popover(IB("shot", "Shot settings", () => {}, "Shot", { show: true, cls: "quiet" }), [
     grp("Output", [row("Aspect", aspectSel)]),
     grp("Capture", [row("Playback speed", inSpeed), row("At end", endSel)]),
     grp("Camera path", [row("Interpolation", pathSel), row("Camera", followSel), row("Gizmo snap", bSnap)]),
-    grp("Setting", [row("Show", settingSel)]),
+    grp("Camera FX", [row("Zoom aims at", zoomAimSel), row("Preview focus", dofPrevBox), row("Shutter (deg)", shutterIn), row("Distortion", lfx("distortion")),
+      row("Chromatic ab.", lfx("chromatic_aberration")), row("Bloom", lfx("bloom")), row("Halation", lfx("halation")), row("Anamorphic", lfx("anamorphic"))]),
+    grp("Background scene", [row("Show", settingSel)]),
     grp("Preview", [], { class: "grp shot-preview-group", hidden: "" })]);
   const K = (k, t) => el("div", { class: "k" }, [el("kbd", {}, k), el("span", {}, t)]);
   const helpPop = popover(IB("help", "Controls and shortcuts", () => {}), [el("div", { class: "keys" }, [
@@ -422,6 +446,13 @@ async function openDirector(node) {
   document.body.append(root);
 
   // ---------- load preview ----------
+  let closed = false, alive = false;   // close() can run while the capture is still loading: everything after an await checks this
+  const failInit = (text) => {   // a capture that can't open: say why, keep only the window controls, Esc closes
+    msg.textContent = text;
+    root.querySelectorAll("button, select, input").forEach((b) => { if (!/^(Cancel|Minimise|Close)/.test(b.title || "")) b.disabled = true; });
+    const esc = (ev) => { if (ev.key === "Escape") { window.removeEventListener("keydown", esc, true); close(false); } };
+    window.addEventListener("keydown", esc, true);
+  };
   let meta;
   try {   // the mode toggle (fast mannequin | 4DGS splat) picks which capture of this clip to preview and render
     const rr = await (await fetch(`/sam3dbx/director/resolve?train_dir=${encodeURIComponent(trainDir)}&mode=${encodeURIComponent(wMode?.value || "4DGS (splat)")}`)).json();
@@ -431,19 +462,28 @@ async function openDirector(node) {
         body: JSON.stringify({ state, from: state.space_dir, to: rr.dir }) })).json();
     }
     trainDir = rr.dir; state.space_dir = rr.dir; modeBadge.textContent = rr.kind === "splat" ? "4DGS splat" : "fast · mannequin";
-  } catch (e) { msg.textContent = "Could not open this capture: " + e.message; return; }
+  } catch (e) { if (!closed) failInit("Could not open this capture: " + e.message); return; }
+  if (closed) return;
   try {
     const r = await fetch(`/sam3dbx/director/meta?train_dir=${encodeURIComponent(trainDir)}`);
     meta = await r.json(); if (meta.error) throw new Error(meta.error);
-  } catch (e) { msg.textContent = "Could not build the preview: " + e.message; return; }
-  const buf = await (await fetch(`/sam3dbx/director/points?train_dir=${encodeURIComponent(trainDir)}`)).arrayBuffer();
+  } catch (e) { if (!closed) failInit("Could not build the preview: " + e.message); return; }
+  if (closed) return;
+  let buf;
+  try {   // n points x (9 floats + 3 colour bytes)
+    const r = await fetch(`/sam3dbx/director/points?train_dir=${encodeURIComponent(trainDir)}`);
+    if (!r.ok) throw new Error(`the preview points did not load (${r.status})`);
+    buf = await r.arrayBuffer();
+    if (buf.byteLength < meta.n * 39) throw new Error("the preview points file is incomplete");
+  } catch (e) { if (!closed) failInit("Could not build the preview: " + e.message); return; }
+  if (closed) return;
   msg.remove();
   const n = meta.n, f32 = new Float32Array(buf, 0, n * 9), u8 = new Uint8Array(buf, n * 9 * 4, n * 3);
   const up = new THREE.Vector3(...meta.up), centre = new THREE.Vector3(...meta.centre);
   const front = new THREE.Vector3(...meta.front), side = new THREE.Vector3(...meta.side), dist0 = meta.dist0;
   BASIS = [meta.up, meta.front, meta.side]; TRACK = meta.track || null;
   // a new shot lasts as long as the captured clip: presets then run the performance in real time, frame for frame with the input
-  if (!state.keys.length && meta.seconds) {
+  if (!state.keys.length && !state.user_timing && meta.seconds) {
     // a trimmed clip spans real_seconds: the shot lasts that long and the capture plays at the speed that makes it real time
     const real = meta.real_seconds || meta.seconds;
     state.duration = +real.toFixed(2); inDur.value = state.duration;
@@ -470,7 +510,7 @@ async function openDirector(node) {
   geo.setAttribute("aOpa", new THREE.BufferAttribute(opa, 1)); geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
   const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, vertexColors: true,
     uniforms: { uScene: { value: 0 }, uUseVel: { value: meta.use_velocity ? 1 : 0 }, uPx: { value: 800 },
-      uSize: { value: meta.fast_mode ? 0.013 : 0.0065 } } });   // a mannequin's points are sparser than a splat's: bigger dots close the gaps
+      uSize: { value: meta.fast_mode ? 0.013 : 0.0065 }, uDof: { value: 0 }, uCocA: { value: 0 }, uFocusU: { value: 1 } } });   // a mannequin's points are sparser than a splat's: bigger dots close the gaps
   const points = new THREE.Points(geo, mat); points.frustumCulled = false; scene.add(points);
   let settingPts = null;   // the setting layer, once loaded
   if (meta.setting_n) {   // the clip's real setting (DA3 depth of the real frames, person masked out): static points around her
@@ -577,19 +617,21 @@ async function openDirector(node) {
   let live = false, view = "camera", playing = false, playhead = 0, sel = -1, sceneT = 0;
   // ---------- transport (preview only: none of this changes the saved shot) ----------
   let rate = 1, loopOn = true, previewMul = 1;
-  const fpsV = () => Math.max(1, +inFps.value || 24), nFrames = () => Math.max(1, Math.round((+inDur.value || 1) * fpsV()));
+  // typed values are checked: a negative or huge FPS / length must never reach the path loops
+  const fpsV = () => Math.min(240, Math.max(1, +inFps.value || 24)), durV = () => Math.min(600, Math.max(0.1, +inDur.value || 4));
+  const nFrames = () => Math.max(1, Math.round(durV() * fpsV()));
   const lastT = () => (nFrames() - 1) / fpsV(), frameOf = (t) => Math.round(t * fpsV());
-  function seek(t) { playing = false; playhead = Math.min(Math.max(0, t), +inDur.value); live = false; drawTimeline(); }
+  function seek(t) { playing = false; playhead = Math.min(Math.max(0, t), durV()); live = false; drawTimeline(); }
   const stepFrame = (d) => seek(Math.min(nFrames() - 1, Math.max(0, frameOf(playhead) + d)) / fpsV());
   function togglePlay() {
     if (playing) { playing = false; return; }
-    rate = 1; if (!loopOn && playhead >= lastT() - 1e-6) playhead = 0; playing = true;
+    rate = 1; if (!loopOn && playhead >= lastT() - 1e-6) playhead = 0; playing = true; live = false;
   }
   function shuttle(dir) {   // J / L: start that way at 1x, each press again doubles up to 4x, the other way reverses
     if (playing && Math.sign(rate) === dir) rate = Math.max(-4, Math.min(4, rate * 2)); else rate = dir;
     if (!loopOn && dir > 0 && playhead >= lastT() - 1e-6) playhead = 0;
     if (!loopOn && dir < 0 && playhead <= 1e-6) playhead = lastT();
-    playing = true;
+    playing = true; live = false;
   }
   function arrival(k) {   // output time at which the camera reaches key k (differs from k.t under the whole-shot ease)
     const keys = [...state.keys].sort((a, b) => a.t - b.t);
@@ -597,6 +639,27 @@ async function openDirector(node) {
     const t0 = keys[0].t, t1 = keys[keys.length - 1].t; if (k.t <= t0 || k.t >= t1) return k.t;
     let lo = t0, hi = t1; for (let n = 0; n < 40; n++) { const m = (lo + hi) / 2; shotTime({ shot_ease: "smooth" }, keys, m) < k.t ? (lo = m) : (hi = m); }
     return (lo + hi) / 2;
+  }
+  let dofPreview = true;
+  function camFxAt(t) {
+    const val = (name) => {
+      const ks = state.keys.filter((k) => k[name] !== undefined).sort((a, b) => a.t - b.t);
+      if (!ks.length) return undefined;
+      if (t <= ks[0].t || ks.length === 1) return [ks[0][name], ks[0][name], 0];
+      if (t >= ks[ks.length - 1].t) return [ks[ks.length - 1][name], ks[ks.length - 1][name], 0];
+      const j = ks.findIndex((k, i) => i < ks.length - 1 && ks[i + 1].t > t);
+      return [ks[j][name], ks[j + 1][name], (t - ks[j].t) / Math.max(ks[j + 1].t - ks[j].t, 1e-6)];
+    };
+    const fs = val("fstop"), fo = val("focus");
+    if (!fs && !fo) return null;
+    const subj = () => {   // camera to the subject (head if tracked, else the capture centre), metres
+      const sc = curScene(t), pt = TRACK && TRACK.head ? trackAt("head", sc) : meta.centre;
+      return cam.eye.distanceTo(new THREE.Vector3(...pt)) * (meta.metres_per_unit || 1);
+    };
+    const m = (v) => (v === "subject" ? subj() : +v);
+    const fstop = fs ? fs[0] + (fs[1] - fs[0]) * fs[2] : 2.8;
+    const focus = fo ? 1 / ((1 - fo[2]) / m(fo[0]) + fo[2] / m(fo[1])) : subj();
+    return { fstop, focus };
   }
   function jumpKey(d) {
     if (!state.keys.length) return;
@@ -623,9 +686,9 @@ async function openDirector(node) {
   const goView = (n) => { const [a, e] = VIEWS[n]; snapView(a === null ? editOrbit.az : a, e); };
 
   // ---------- helpers ----------
-  const S = () => ({ ...state, duration: +inDur.value, fps: +inFps.value, bpm: 0, first_beat: 0, shake: 0, path: pathSel.value, shot_ease: easeSel.value === "smooth" ? "smooth" : undefined, speed: +inSpeed.value, scene_end: endSel.value,
+  const S = () => ({ ...state, duration: durV(), fps: fpsV(), bpm: 0, first_beat: 0, shake: 0, path: pathSel.value, shot_ease: easeSel.value === "smooth" ? "smooth" : undefined, speed: +inSpeed.value, scene_end: endSel.value,
     scene_mode: state.scene_mode || "keys", capture_seconds: meta.seconds });
-  const snap = (t) => Math.round(t * +inFps.value) / +inFps.value;   // keys land on frames
+  const snap = (t) => Math.round(t * fpsV()) / fpsV();   // keys land on frames
   function curScene(t) { const s = state.keys.length ? sample(S(), t, dist0) : null; return s ? s.scene : sceneT; }
   function keyFromCam(t) {
     const target = cam.eye.clone().addScaledVector(camDir(), Math.max(dist0 * 0.5, cam.eye.distanceTo(centre)));
@@ -635,8 +698,8 @@ async function openDirector(node) {
   }
   function addKey() {
     multi.clear();
-    const t = Math.min(snap(playhead), +inDur.value), nk = keyFromCam(t);
-    const i = state.keys.findIndex((q) => Math.abs(q.t - t) < 0.5 / +inFps.value);
+    const t = Math.min(snap(playhead), durV()), nk = keyFromCam(t);
+    const i = state.keys.findIndex((q) => Math.abs(q.t - t) < 0.5 / fpsV());
     const k = i >= 0 ? Object.assign(state.keys[i], { eye: nk.eye, target: nk.target, lens: nk.lens, roll: nk.roll }) : nk;
     if (i < 0) state.keys.push(k);
     state.keys.sort((a, b) => a.t - b.t); sel = state.keys.indexOf(k); live = false; rebuild();
@@ -663,16 +726,17 @@ async function openDirector(node) {
   const redo = () => { if (history.future.length) { history.past.push(history.last); restore(history.future.pop()); } };
   let clip = null;
   const copyKey = () => { if (state.keys[sel]) clip = JSON.parse(JSON.stringify(state.keys[sel])); };
-  function placeKey(k) {
+  function placeKey(k, whole = false) {
     multi.clear();
-    const i = state.keys.findIndex((q) => Math.abs(q.t - k.t) < 0.5 / +inFps.value);
-    if (i >= 0) { k = Object.assign(state.keys[i], { eye: k.eye, target: k.target, lens: k.lens, roll: k.roll }); } else state.keys.push(k);
+    const i = state.keys.findIndex((q) => Math.abs(q.t - k.t) < 0.5 / fpsV());
+    if (i >= 0 && whole) state.keys[i] = k;
+    else if (i >= 0) { k = Object.assign(state.keys[i], { eye: k.eye, target: k.target, lens: k.lens, roll: k.roll }); } else state.keys.push(k);
     state.keys.sort((a, b) => a.t - b.t); sel = state.keys.indexOf(k); playhead = k.t; live = false; rebuild();
   }
-  const pasteKey = () => { if (clip) placeKey({ ...JSON.parse(JSON.stringify(clip)), t: snap(playhead) }); };
+  const pasteKey = () => { if (clip) placeKey({ ...JSON.parse(JSON.stringify(clip)), t: snap(playhead) }, true); };
   function duplicateKey() {
     const k = state.keys[sel]; if (!k) return;
-    let t = snap(playhead); if (Math.abs(t - k.t) < 1e-6) t = Math.min(+inDur.value, k.t + 1);
+    let t = snap(playhead); if (Math.abs(t - k.t) < 1e-6) t = Math.min(durV(), k.t + 1);
     placeKey({ ...JSON.parse(JSON.stringify(k)), t });
   }
   function keyEditorView() {   // Blender's "camera to view": key what the editor is looking at
@@ -715,10 +779,10 @@ async function openDirector(node) {
     attachGizmo(); panel(); drawTimeline(); record();
   }
   function applyPreset(name) {
-    multi.clear();
+    multi.clear(); const before = state.keys;
     // R = the generated cameras' own distance (with the 50 mm lens ~ their field of view): Shot Prep's identity anchors then cover
     // the whole frame; further out they fall under its coverage cutoff and the render loses the person
-    const D = +inDur.value, R = dist0, H = dist0 * 0.2;
+    const D = durV(), R = dist0, H = dist0 * 0.2;
     const at = (deg, r = R, h = H) => { const a = (deg * Math.PI) / 180; return centre.clone().addScaledVector(front, Math.cos(a) * r).addScaledVector(side, Math.sin(a) * r).addScaledVector(up, h).toArray(); };
     const C = centre.toArray(), K = (t, eye, scene, extra = {}) => ({ t, eye, target: C, lens: 50, roll: 0, scene, ease: "smooth", ...extra });
     // basic moves around the capture; scene time runs 0 -> 1 across the shot
@@ -766,6 +830,8 @@ async function openDirector(node) {
         K(0.42 * D, face(-40), 0, { aim: "head", lens: 50 }), K(0.72 * D, face(40), 0, { aim: "head", lens: 50 }), K(D, at(0), 0, { aim: "body", lens: 35 })];
       pathSel.value = "orbit";
     }
+    if (state.keys === before)   // the preset needs data this capture doesn't have
+      return alertMsg(/^Face/.test(name) ? "Face needs a head track, which this capture doesn't have" : `${name} starts on the real camera, and this capture has no camera solve`);
     state.scene_mode = "auto";
     sel = 0; live = false; rebuild();
   }
@@ -804,10 +870,10 @@ async function openDirector(node) {
         i.onchange = () => { k[prop][ax] = +i.value; live = false; rebuild(); }; return i; });
       to.append(el("label", {}, [label, el("div", { style: "display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px" }, ins)]));
     };
-    num(aside, "Time (s)", "t", 1 / +inFps.value, 0, +inDur.value, (v) => {
-      const t = Math.min(+inDur.value, Math.max(0, snap(v)));
-      return state.keys.some((q) => q !== k && Math.abs(q.t - t) < 0.5 / +inFps.value) ? k.t : t; });
-    num(aside, "Lens (mm)", "lens", 1, 8, 300);
+    num(aside, "Time (s)", "t", 1 / fpsV(), 0, durV(), (v) => {
+      const t = Math.min(durV(), Math.max(0, snap(v)));
+      return state.keys.some((q) => q !== k && Math.abs(q.t - t) < 0.5 / fpsV()) ? k.t : t; });
+    num(aside, "Lens (mm)", "lens", 1, 8, 300, undefined, "Focal length, measured on a 36 mm tall frame (imported cameras are converted to this)");
     const aimSel = el("select", { title: "Where this key looks: a fixed point, or the subject's head or body as they move" },
       [["fixed", "Fixed point"], ["head", "Follow head"], ["body", "Follow body"]].map(([v, l]) => el("option", { value: v, disabled: v !== "fixed" && !(TRACK && TRACK[v]) ? "" : null }, l)));
     aimSel.value = k.aim || "fixed"; aimSel.onchange = () => { k.aim = aimSel.value; if (k.aim !== "fixed") gizmoOn = "camera"; rebuild(); };
@@ -816,11 +882,30 @@ async function openDirector(node) {
       const fz = el("input", { type: "checkbox", style: "width:auto;justify-self:start" }); fz.checked = !!k.freeze;
       fz.onchange = () => { k.freeze = fz.checked; rebuild(); };
       aside.append(el("label", { title: "Freeze the capture until the next key. The camera keeps moving." }, ["Freeze time", fz]));
-    } else num(aside, "Scene (0-1)", "scene", 0.01, 0, 1, (v) => Math.min(1, Math.max(0, v)), "Where in the capture this key is (keyed scene time)");
+    } else num(aside, "Scene (0-1)", "scene", 0.01, 0, 1, (v) => Math.min(1, Math.max(0, v)), "Capture time at this key: 0 is the start of the trimmed clip, 1 its end");
     const e = el("select", { title: "How the camera moves to the next key. ease in/out = slows into and out of each key, linear = constant speed, hold = stay here, then cut" },
       ["smooth", "linear", "hold"].map((x) => el("option", { value: x, selected: x === k.ease ? "" : null }, EASE_LABEL[x])));
     e.value = k.ease; e.onchange = () => { k.ease = e.value; rebuild(); };
     aside.append(el("label", {}, ["Ease", e]));
+    // camera settings (Camera FX reads them from the path): blank = this key doesn't set it, the value carries on from the keys around it
+    const cam = el("details", { open: "" }, [el("summary", { title: "Applied after the re-shoot by Camera FX, so changing them needs no new render" }, "Camera")]);
+    const opt = (label, prop, step, min, max, title, parse = (v) => +v) => {
+      const i = el("input", { type: "text", inputmode: "decimal", placeholder: "-", value: k[prop] === undefined ? "" : String(k[prop]), title });
+      i.onchange = () => {
+        const v = i.value.trim();
+        if (v === "") delete k[prop];
+        else { const x = parse(v); if (x === null || (typeof x === "number" && !isFinite(x))) { i.value = k[prop] ?? ""; return alertMsg(`${label}: ${title}`); }
+               k[prop] = typeof x === "number" ? Math.min(max, Math.max(min, x)) : x; }
+        rebuild();
+      };
+      cam.append(el("label", { title }, [label, i]));
+    };
+    opt("Aperture (f/)", "fstop", 0.1, 0.7, 22, "f-number, 0.7 to 22: lower = shallower focus. Blank = carry on from the other keys");
+    opt("Focus", "focus", 0.05, 0.05, 1000, 'distance in metres, or "subject" to follow the person. Blank = carry on from the other keys',
+        (v) => (/^s(ubject)?$/i.test(v) ? "subject" : (isFinite(+v) && +v > 0 ? +v : null)));
+    opt("Vignette", "vignette", 0.05, 0, 1, "0 to 1: darkening towards the corners");
+    opt("Grain", "grain", 0.05, 0, 1, "0 to 1: film grain");
+    aside.append(cam);
     const adv = el("details", {}, [el("summary", {}, "Advanced")]); adv.open = advancedOpen; adv.ontoggle = () => { advancedOpen = adv.open; };
     vec(adv, "Camera", "eye"); vec(adv, "Target", "target", TRACK && TRACK[k.aim]); num(adv, "Roll (°)", "roll", 1, -180, 180);
     adv.append(el("div", { class: "hint" }, `Capture time here: ${(sample(S(), k.t, dist0).scene * meta.seconds).toFixed(2)} of ${meta.seconds.toFixed(2)} s`));
@@ -835,14 +920,14 @@ async function openDirector(node) {
   // lanes: ruler (seek) | camera keys (select, Shift+click to add, drag to retime; one drag moves a whole selection) | capture time
   const TL = { pad: 58, g: null };
   const lanes = (h) => ({ r1: 20, c0: 22, c1: 74, k: 44, s0: 80, s1: h - 6 });
-  function tToX(t, w) { return TL.pad + (t / Math.max(+inDur.value, 1e-3)) * (w - 2 * TL.pad); }
-  function xToT(x, w) { return Math.min(+inDur.value, Math.max(0, ((x - TL.pad) / (w - 2 * TL.pad)) * +inDur.value)); }
+  function tToX(t, w) { return TL.pad + (t / Math.max(durV(), 1e-3)) * (w - 2 * TL.pad); }
+  function xToT(x, w) { return Math.min(durV(), Math.max(0, ((x - TL.pad) / (w - 2 * TL.pad)) * durV())); }
   function drawTimeline() {
     const r = tlc.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
     if (!r.width || !r.height) return;
     if (tlc.width !== Math.round(r.width * dpr) || tlc.height !== Math.round(r.height * dpr)) { tlc.width = Math.round(r.width * dpr); tlc.height = Math.round(r.height * dpr); }
     const g = tlc.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const w = r.width, h = r.height, D = +inDur.value, F = fpsV(), L = lanes(h), keys = state.keys, eps = 0.5 / F;
+    const w = r.width, h = r.height, D = durV(), F = fpsV(), L = lanes(h), keys = state.keys, eps = 0.5 / F;
     g.fillStyle = "#0b0b0b"; g.fillRect(0, 0, w, h);
     g.fillStyle = "#101010"; g.fillRect(0, L.c0, w, L.c1 - L.c0); g.fillRect(0, L.s0, w, L.s1 - L.s0);
     // ruler: seconds, frame ticks when they fit, OUT boundary and the last rendered frame
@@ -915,7 +1000,7 @@ async function openDirector(node) {
     let hit = -1;
     if (y >= L.c0 && y <= L.c1) {
       let best = 9;
-      state.keys.forEach((k, i) => { const d = Math.abs(tToX(Math.min(k.t, +inDur.value), w) - x); if (d < best) { best = d; hit = i; } });
+      state.keys.forEach((k, i) => { const d = Math.abs(tToX(Math.min(k.t, durV()), w) - x); if (d < best) { best = d; hit = i; } });
     }
     if (hit >= 0 && ev.shiftKey) {   // the same selection as Shift+click in the viewport
       if (!multi.size && sel >= 0) multi.add(sel);
@@ -936,7 +1021,7 @@ async function openDirector(node) {
     if (G.scrub) { seek(xToT(x, w)); return; }
     if (!G.moved && Math.abs(x - G.x0) < 3) return;
     G.moved = true;
-    const D = +inDur.value, F = fpsV();
+    const D = durV(), F = fpsV();
     let d = ((x - G.x0) / (w - 2 * TL.pad)) * D; if (!ev.altKey) d = Math.round(d * F) / F;
     d = Math.max(-Math.min(...G.t0), Math.min(D - Math.max(...G.t0), d));   // the group keeps its spacing at the shot's ends
     const nt = G.t0.map((t) => t + d), others = state.keys.filter((k) => !G.keys.includes(k));
@@ -1056,7 +1141,7 @@ async function openDirector(node) {
   };
 
   // ---------- loop ----------
-  let last = performance.now(), alive = true;
+  let last = performance.now(); alive = !closed;
   function resize() {
     const r = vp.getBoundingClientRect(); renderer.setSize(r.width, r.height, false);
     edit.aspect = r.width / r.height; edit.updateProjectionMatrix(); drawTimeline();
@@ -1076,7 +1161,7 @@ async function openDirector(node) {
       // an unwrapped playhead back onto the last frame and hold it there until a slow frame happened to jump past the span)
       if (playhead > lastT() + 1e-9) { if (loopOn) playhead = Math.max(0, playhead - span); else { playhead = lastT(); playing = false; } }
       if (playhead < 0) { if (loopOn) playhead = Math.min(lastT(), playhead + span); else { playhead = 0; playing = false; } }
-      playhead = Math.min(Math.max(0, playhead), lastT()); live = false; drawTimeline();
+      playhead = Math.min(Math.max(0, playhead), lastT()); drawTimeline();
     }
     { const f = frameOf(playhead), F = fpsV(), txt = `${String(Math.floor(f / F)).padStart(2, "0")}:${String(f % F).padStart(2, "0")}`;
       if (tcOut.textContent !== txt) tcOut.textContent = txt;
@@ -1093,10 +1178,11 @@ async function openDirector(node) {
       if ([..."wasdqert"].some((c) => keysDown.has(c))) live = true;
     }
     // evaluate the path unless the user is flying a new shot
-    if (!live && state.keys.length) {
-      const q = sample(S(), playhead, dist0);
-      cam.eye.set(...q.eye); aimAt(new THREE.Vector3(...q.target)); cam.lens = q.lens; cam.roll = q.roll; sceneT = q.scene;
-    }
+    // the performance plays along the timeline: the keys' scene time when there is a path (also while flying), else real time
+    if (state.keys.length) {
+      const q = sample(S(), playhead, dist0); sceneT = q.scene;
+      if (!live) { cam.eye.set(...q.eye); aimAt(new THREE.Vector3(...q.target)); cam.lens = q.lens; cam.roll = q.roll; }
+    } else sceneT = sceneAuto(S(), [], playhead);
     mat.uniforms.uScene.value = sceneT;
     if (meta.p2s) {   // she moves through the clip's setting (the source camera's real path): place her there at this moment
       const m = meta.p2s[Math.min(meta.p2s.length - 1, Math.max(0, Math.round(sceneT * (meta.p2s.length - 1))))];
@@ -1108,13 +1194,21 @@ async function openDirector(node) {
     shotProxy.updateProjectionMatrix(); shotProxy.updateMatrixWorld(); helper.update();
     const r = vp.getBoundingClientRect();
     renderer.setScissorTest(false); renderer.setViewport(0, 0, r.width, r.height); renderer.setClearColor(0x050505); renderer.clear();
+    const dofOn = (hpx) => {   // the keys' aperture and focus at the playhead, as Camera FX will apply them (thin lens, metres)
+      const d = camFxAt(playhead); mat.uniforms.uDof.value = d && dofPreview ? 1 : 0;
+      if (!d || !dofPreview) return;
+      const mpu = meta.metres_per_unit || 1, f = cam.lens, zf = Math.max(d.focus / mpu, 1e-3);
+      mat.uniforms.uFocusU.value = zf;
+      mat.uniforms.uCocA.value = (f * f) / (d.fstop * Math.max(zf * mpu * 1000 - f, 1)) / 36 * hpx / 2;
+    };
+    mat.uniforms.uDof.value = 0;
     if (view === "camera") {   // letterboxed 9:16 shot
       pip.style.display = "none"; navg.style.display = "none";
       const w = Math.min(r.width, r.height * ASPECT), h = w / ASPECT, x = (r.width - w) / 2, y = (r.height - h) / 2;
       renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h); renderer.setScissorTest(true); renderer.setClearColor(0x000000); renderer.clear();
-      mat.uniforms.uPx.value = h / (2 * Math.tan((shot.fov * Math.PI) / 360));
+      mat.uniforms.uPx.value = h / (2 * Math.tan((shot.fov * Math.PI) / 360)); dofOn(h);
       if (settingPts) settingPts.visible = settingSel.value === "both";
-      renderer.render(scene, shot);
+      renderer.render(scene, shot); mat.uniforms.uDof.value = 0;
     } else {
       if (editTween) {
         const x = Math.min(1, (now - editTween.t0) / 280), e = x * x * (3 - 2 * x);
@@ -1133,8 +1227,8 @@ async function openDirector(node) {
       helper.visible = keyGroup.visible = pathLine.visible = tcHelper.visible = rigDots.visible = false;
       renderer.setViewport(r.width - pw - m, m, pw, ph); renderer.setScissor(r.width - pw - m, m, pw, ph); renderer.setScissorTest(true);
       renderer.setClearColor(0x000000); renderer.clear();
-      mat.uniforms.uPx.value = ph / (2 * Math.tan((shot.fov * Math.PI) / 360));
-      renderer.render(scene, shot); renderer.setScissorTest(false);
+      mat.uniforms.uPx.value = ph / (2 * Math.tan((shot.fov * Math.PI) / 360)); dofOn(ph);
+      renderer.render(scene, shot); renderer.setScissorTest(false); mat.uniforms.uDof.value = 0;
       [helper.visible, keyGroup.visible, pathLine.visible, tcHelper.visible, rigDots.visible] = vis;
       navg.style.display = "block"; pip.style.display = "block"; pip.style.width = pw + "px"; pip.style.height = ph + "px";
       pip.firstChild.textContent = sel >= 0 && Math.abs(state.keys[sel]?.t - playhead) < 1e-6 ? `KEY ${sel + 1}` : "SHOT";
@@ -1144,7 +1238,7 @@ async function openDirector(node) {
     if (hud.innerHTML !== hudTxt) hud.innerHTML = hudTxt;
     requestAnimationFrame(frame);
   }
-  [inDur, inFps, inSpeed].forEach((i) => (i.oninput = () => { if (+inDur.value > 0) playhead = Math.min(playhead, +inDur.value); rebuild(); }));
+  [inDur, inFps, inSpeed].forEach((i) => (i.oninput = () => { state.user_timing = true; playhead = Math.min(playhead, durV()); rebuild(); }));
   prevSel.value = "1x"; prevSel.onchange = () => { previewMul = parseFloat(prevSel.value); prevSel.blur(); };
   inFrame.onchange = () => { seek(Math.min(nFrames() - 1, Math.max(0, Math.round(+inFrame.value))) / fpsV()); inFrame.blur(); };
   bLoop.classList.add("on");
@@ -1164,13 +1258,13 @@ async function openDirector(node) {
   }
   const toRel = (p) => { const { f, s } = relFrame(), v = new THREE.Vector3(...p).sub(centre); return [v.dot(f), v.dot(s), v.dot(up)].map((x) => x / dist0); };
   const fromRel = (r) => { const { f, s } = relFrame(); return centre.clone().addScaledVector(f, r[0] * dist0).addScaledVector(s, r[1] * dist0).addScaledVector(up, r[2] * dist0).toArray(); };
-  function exportPath() {
+  function exportPath(name = "camera_path.json") {
     // keys on the real input camera are tagged: on another clip they take that clip's real camera (position, aim and lens)
     const onSrc = (k) => meta.source && new THREE.Vector3(...k.eye).distanceTo(new THREE.Vector3(...meta.source.eye)) < dist0 * 1e-3;
     const st = S(), cr = camRel(meta, state.follow);
     const out = { dropcam_path: 1, state: st, rel: st.keys.map((k) => ({ eye: toRel(k.eye), target: toRel(k.target), source: onSrc(k) || undefined })),
                   cam: cr ? st.keys.map((k) => cr.to(k)) : undefined };
-    const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" })), download: "camera_path.json" });
+    const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" })), download: name });
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function importPath(text) {
@@ -1182,7 +1276,7 @@ async function openDirector(node) {
     const cr = Array.isArray(d.cam) && d.cam.length === keys.length && camRel(meta, st.follow);
     if (st.space_dir !== trainDir && cr) keys.forEach((k, i) => cr.from(d.cam[i], k));   // camera-relative: from this clip's real camera
     else if (st.space_dir !== trainDir) {
-      if (!Array.isArray(d.rel) || d.rel.length !== keys.length) return alertMsg("This path was made on another capture and has no portable copy: export it again from the Director");
+      if (!Array.isArray(d.rel) || d.rel.length !== keys.length) return alertMsg("This path was made on another capture and has no portable copy: export it again from the Virtual Camera editor");
       keys.forEach((k, i) => {
         if (d.rel[i].source && meta.source) Object.assign(k, { eye: [...meta.source.eye], target: [...meta.source.target], lens: meta.source.lens });
         else { k.eye = fromRel(d.rel[i].eye); k.target = fromRel(d.rel[i].target); }
@@ -1193,8 +1287,133 @@ async function openDirector(node) {
     inSpeed.value = st.speed ?? 1;
     if (st.scene_end) endSel.value = st.scene_end; if (st.path) pathSel.value = st.path;
     easeSel.value = st.shot_ease === "smooth" ? "smooth" : "keys"; if (st.follow !== undefined) { state.follow = st.follow; followSel.value = st.follow === false ? "off" : "on"; }
+    for (const f of ["lens_fx", "shutter_angle", "zoom_aim"]) { if (st[f] !== undefined) state[f] = JSON.parse(JSON.stringify(st[f])); else delete state[f]; }
+    zoomAimSel.value = state.zoom_aim || "subject"; fxInputs.forEach((i) => i.refresh());
     // aspect stays this clip's: the shot shape follows the input, not the clip the path was keyed on
     sel = 0; live = false; rebuild();
+  }
+  // ---------- camera files (.fbx / .abc / .usd*) ----------
+  // Blender reads the file on the server (camfile.py) and returns the picked camera's move relative to its own first frame, in this
+  // capture's units. The move starts on the real camera (as the presets do), locked in the setting; its zoom scales the real lens.
+  async function importCamFile(file) {
+    if (!meta.source) return alertMsg("This capture has no real camera solve, so an imported camera has nowhere to start");
+    alertMsg(`Reading ${file.name} ...`);
+    const post = async (body, headers) => (await fetch("/sam3dbx/director/camfile", { method: "POST", body, headers })).json();
+    try {
+      const fd = new FormData(); fd.append("file", file, file.name);
+      const info = await post(fd);
+      if (info.error) return alertMsg(info.error);
+      const name = info.cameras.length === 1 ? info.cameras[0].name : await pickCamera(info);
+      if (!name) return;
+      const bake = async (n) => post(JSON.stringify({ path: info.path, camera: n, train_dir: trainDir }), { "Content-Type": "application/json" });
+      if (name === ALL_CAMS) {   // multicam: every camera becomes its own path file; the first stays loaded
+        for (const c of info.cameras) {
+          const b = await bake(c.name); if (b.error) return alertMsg(`${c.name}: ${b.error}`);
+          placeCamFile(b); exportPath(`${c.name.replace(/[^\w.-]+/g, "_")}.json`);
+        }
+        const b0 = await bake(info.cameras[0].name); placeCamFile(b0);
+        return alertMsg(`Saved ${info.cameras.length} camera paths (downloads); ${info.cameras[0].name} is loaded. Import the others to use them`);
+      }
+      const b = await bake(name);
+      if (b.error) return alertMsg(b.error);
+      placeCamFile(b);
+    } catch (e) { alertMsg(`Camera file import failed: ${e.message || e}`); }
+  }
+  function pickCamera(info) {
+    return new Promise((res) => {
+      const btn = "text-align:left;padding:7px 10px;background:#111;border:1px solid #333;border-radius:6px;color:#e6e6e6;font:13px system-ui,sans-serif;cursor:pointer";
+      const done = (v) => { box.remove(); res(v); };
+      const box = el("div", { style: "position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);z-index:20" }, [
+        el("div", { style: "background:#080808;border:1px solid #c8ff00;border-radius:8px;padding:14px 16px;min-width:280px;max-height:70vh;overflow:auto;display:flex;flex-direction:column;gap:6px;font:13px system-ui,sans-serif;color:#e6e6e6" }, [
+          el("div", { style: "font-weight:600;margin-bottom:4px" }, `${info.file}: which camera?`),
+          ...info.cameras.map((c) => el("button", { style: btn, onclick: () => done(c.name) },
+            `${c.name}  ·  frames ${c.range[0]}-${c.range[1]}  ·  ${c.lens} mm${c.type !== "PERSP" ? "  ·  " + c.type.toLowerCase() : ""}`)),
+          el("button", { style: btn + ";border-color:#c8ff00", onclick: () => done(ALL_CAMS), title: "Each camera saved as its own path file (multicam)" }, `All ${info.cameras.length} cameras: save each as a path`),
+          el("button", { style: btn + ";color:#999", onclick: () => done(null) }, "Cancel")])]);
+      vp.append(box);
+    });
+  }
+  const ALL_CAMS = "\u0000all";
+  function chooseOne(title, options) {   // a small modal list: resolves the picked value or null
+    return new Promise((res) => {
+      const btn = "text-align:left;padding:7px 10px;background:#111;border:1px solid #333;border-radius:6px;color:#e6e6e6;font:13px system-ui,sans-serif;cursor:pointer";
+      const done = (v) => { box.remove(); res(v); };
+      const box = el("div", { style: "position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);z-index:20" }, [
+        el("div", { style: "background:#080808;border:1px solid #c8ff00;border-radius:8px;padding:14px 16px;min-width:280px;display:flex;flex-direction:column;gap:6px;font:13px system-ui,sans-serif;color:#e6e6e6" }, [
+          el("div", { style: "font-weight:600;margin-bottom:4px" }, title),
+          ...options.map(([v, label]) => el("button", { style: btn, onclick: () => done(v) }, label)),
+          el("button", { style: btn + ";color:#999", onclick: () => done(null) }, "Cancel")])]);
+      vp.append(box);
+    });
+  }
+  async function exportCamFile() {
+    const fmt = await chooseOne("Export the camera as", [["json", "Camera path (.json)"], ["fbx", "FBX (.fbx, Blender)"], ["usd", "USD (.usdc, Blender)"], ["abc", "Alembic (.abc, Blender)"]]);
+    if (!fmt) return;
+    if (fmt === "json") return exportPath();
+    alertMsg("Writing the camera file ...");
+    try {
+      const r = await fetch("/sam3dbx/director/camexport", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ train_dir: trainDir, state: S(), format: fmt }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); return alertMsg(e.error || `Export failed (${r.status})`); }
+      const blob = await r.blob(), ext = { fbx: "fbx", usd: "usdc", abc: "abc" }[fmt];
+      const a = el("a", { href: URL.createObjectURL(blob), download: `reshoot4d_camera.${ext}` });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) { alertMsg(`Export failed: ${e.message || e}`); }
+  }
+  // Alt+click in the camera view: focus the key at the playhead on what's under the cursor (its distance along the view, metres)
+  renderer.domElement.addEventListener("pointerdown", (ev) => {
+    if (!ev.altKey || view !== "camera") return;
+    ev.preventDefault(); ev.stopPropagation();
+    const r = vp.getBoundingClientRect(), w = Math.min(r.width, r.height * ASPECT), h = w / ASPECT, x0 = (r.width - w) / 2, y0 = (r.height - h) / 2;
+    const cx = ev.clientX - r.left - x0, cy = ev.clientY - r.top - y0;
+    if (cx < 0 || cy < 0 || cx > w || cy > h) return;
+    const P = geo.getAttribute("position").array, V = geo.getAttribute("aVel").array, T = geo.getAttribute("aTime").array;
+    const useVel = meta.use_velocity, v = new THREE.Vector3(), inv = shot.matrixWorldInverse;
+    let best = null;
+    for (let i = 0; i < P.length / 3; i += 2) {
+      const dt = useVel ? sceneT - T[i] : 0;
+      v.set(P[i * 3] + V[i * 3] * dt, P[i * 3 + 1] + V[i * 3 + 1] * dt, P[i * 3 + 2] + V[i * 3 + 2] * dt).applyMatrix4(inv);
+      const z = -v.z; if (z <= 0) continue;
+      v.applyMatrix4(shot.projectionMatrix);
+      const px = (v.x * 0.5 + 0.5) * w - cx, py = (-v.y * 0.5 + 0.5) * h - cy;
+      if (px * px + py * py < 100 && (!best || z < best)) best = z;
+    }
+    if (!best) return alertMsg("Nothing under the cursor to focus on");
+    const k = state.keys.find((q) => Math.abs(arrival(q) - playhead) < 0.5 / fpsV());
+    const metres = +(best * (meta.metres_per_unit || 1)).toFixed(2);
+    if (!k) return alertMsg(`${metres} m there. Add or select a key at the playhead to focus it`);
+    k.focus = metres; sel = state.keys.indexOf(k); rebuild(); alertMsg(`Focus ${metres} m on key ${sel + 1}`);
+  }, true);
+  function placeCamFile(b) {
+    multi.clear();
+    const src = meta.source, d = TRACK && TRACK.follow ? followDelta(0) : [0, 0, 0];   // locked keys live in the setting
+    const E = new THREE.Vector3(...src.eye).add(new THREE.Vector3(...d)), A = new THREE.Vector3(...src.target).add(new THREE.Vector3(...d));
+    const aimD = A.distanceTo(E), F = A.clone().sub(E).normalize();
+    const R = F.clone().cross(up).normalize(), Dn = F.clone().cross(R);   // the real camera, level: x right, y down, z forward (rig.look_at)
+    const W = (v) => R.clone().multiplyScalar(v[0]).addScaledVector(Dn, v[1]).addScaledVector(F, v[2]);
+    const lens0 = src.lens * Math.max(1, ASPECT / (src.aspect || ASPECT)) * 1.02;   // the real lens framed for the shot, as the presets use
+    const n = b.t.length, step = Math.max(1, Math.ceil(n / 240)), idx = [];
+    for (let i = 0; i < n; i += step) idx.push(i);
+    if (idx[idx.length - 1] !== n - 1) idx.push(n - 1);
+    const dur = b.duration > 0 ? b.duration : durV();
+    let prevRoll = 0;   // unwrapped: a turn through 180 degrees keeps going instead of spinning back the long way
+    state.keys = idx.map((i) => {
+      const M = b.rel[i], col = (c) => [M[0][c], M[1][c], M[2][c]];
+      const eye = E.clone().add(W(col(3))), fwd = W(col(2)).normalize(), xw = W(col(0));
+      const xl = fwd.clone().cross(up).normalize(), yl = fwd.clone().cross(xl);
+      let roll = i === 0 ? 0 : Math.atan2(xw.dot(yl), xw.dot(xl)) * 180 / Math.PI;
+      roll += 360 * Math.round((prevRoll - roll) / 360); prevRoll = roll;
+      const k = { t: b.t[i], eye: eye.toArray(), target: eye.clone().addScaledVector(fwd, aimD).toArray(), lens: lens0 * b.zoom[i], roll,
+                  scene: Math.min(1, b.t[i] / dur), ease: "linear" };
+      if (b.dof) {   // the file's depth of field, for Camera FX (a zero focus distance means none was set: keep the subject)
+        k.fstop = Math.min(22, Math.max(0.7, +(+b.fstop[i]).toFixed(2)));
+        if (b.focus_m[i] > 0.01) k.focus = +b.focus_m[i].toFixed(3);
+      }
+      return k;
+    });
+    inDur.value = +dur.toFixed(3); state.scene_mode = "auto"; pathSel.value = "spline"; easeSel.value = "keys";
+    state.follow = false; followSel.value = "off";
+    sel = 0; live = false; rebuild();
+    alertMsg(`${b.camera}: ${n} frames, ${b.travel_m} m of travel${Math.abs(b.zoom[n - 1] - 1) > 1e-3 ? `, lens x${b.zoom[n - 1].toFixed(2)}` : ""}`);
   }
   function alertMsg(t) { const m = el("div", { class: "msg", style: "pointer-events:none" }, t); vp.append(m); setTimeout(() => m.remove(), 3000); }
 
@@ -1218,7 +1437,7 @@ async function openDirector(node) {
     root.remove(); delete node.__s3dRestore;
     const safe = (f) => { try { f(); } catch (e) { console.warn("Virtual Camera teardown:", e); } };
     if (save) safe(() => { wState.value = JSON.stringify(S()); node.setDirtyCanvas?.(true, true); app.graph?.setDirtyCanvas?.(true, true); });
-    safe(() => { alive = false; }); safe(() => tab.remove()); safe(() => document.removeEventListener("pointerdown", onOutside, true));
+    closed = true; alive = false; safe(() => tab.remove()); safe(() => document.removeEventListener("pointerdown", onOutside, true));
     safe(() => ro.disconnect());
     safe(() => window.removeEventListener("keydown", onKey, true)); safe(() => window.removeEventListener("keyup", onKey, true));
     safe(() => tc.detach()); safe(() => tc.dispose?.()); safe(() => renderer.dispose()); safe(() => geo.dispose());

@@ -8,6 +8,10 @@ window.fetch = (input, init) => {
   const url = typeof input === "string" ? input : input.url, m = url.match(/^\/sam3dbx\/director\/(\w+)/);
   if (!m) return realFetch(input, init);
   if (m[1] === "convert") return Promise.resolve(new Response(init.body, { headers: { "Content-Type": "application/json" } }));   // one capture: nothing to convert
+  if (m[1] === "camfile" || m[1] === "camexport")   // camera files need Blender on the ComfyUI machine
+    return Promise.resolve(new Response(JSON.stringify({ error: "Camera files (.fbx / .abc / .usd) work in ComfyUI with Blender installed. This browser demo can import and export .json paths." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }));
+  if (!ROUTES[m[1]]) return Promise.resolve(new Response(JSON.stringify({ error: "Not available in the browser demo" }), { status: 404, headers: { "Content-Type": "application/json" } }));
   return realFetch(new URL(ROUTES[m[1]], DATA));
 };
 
