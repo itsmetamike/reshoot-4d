@@ -5,7 +5,7 @@ Wraps the capture CLIs under config.ROOT. Generation runs in repo/.venv (torch 2
 repo/third_party/FreeTimeGsVanilla/.venv (torch 2.10 cu128 + gsplat/fused-ssim/torch_scatter built against it). Both run as
 subprocesses so they never share ComfyUI's torch; ComfyUI's models are unloaded first so generation has the GPU to itself.
 """
-import json, math, os, subprocess, time
+import hashlib, json, math, os, subprocess, time
 from pathlib import Path
 
 import cv2
@@ -276,7 +276,8 @@ class Sam3dbxCameraDirector:
             m = S.scene_meta(td, m)   # keys aim at her where she is in the setting
         basis = (m["up"], m["front"], m["side"]) if m else None
         frames = director.rows(state, m.get("dist0", 1.0), basis, m.get("track"))
-        path = td / f"camera_director_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        # one immutable file per move (the same move writes the same file); Retake and Photoreal reuse renders on their own
+        path = td / f"camera_director_{hashlib.sha1(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()[:16]}.json"
         path.write_text(json.dumps({"fps": float(state.get("fps", 24)), "frames": frames, "state": state}))
         return (str(td), str(path), f"{'4DGS splat' if _kind == 'splat' else 'mannequin'}: {state['duration']} s at {state.get('fps', 24)} fps, {len(state['keys'])} keys")
 

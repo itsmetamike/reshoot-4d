@@ -449,7 +449,7 @@ async function openDirector(node) {
   let closed = false, alive = false;   // close() can run while the capture is still loading: everything after an await checks this
   const failInit = (text) => {   // a capture that can't open: say why, keep only the window controls, Esc closes
     msg.textContent = text;
-    root.querySelectorAll("button, select, input").forEach((b) => { if (!/^(Cancel|Minimise|Close)/.test(b.title || "")) b.disabled = true; });
+    root.querySelectorAll("button, select, input").forEach((b) => { if (!/^Cancel/.test(b.title || "")) b.disabled = true; });
     const esc = (ev) => { if (ev.key === "Escape") { window.removeEventListener("keydown", esc, true); close(false); } };
     window.addEventListener("keydown", esc, true);
   };

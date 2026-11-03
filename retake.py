@@ -8,7 +8,7 @@ Retake run  builds the condition path (the real camera path from the capture's c
 Photoreal Pass (retake)  node expansion into the LTX 2.3 graph (ltx_graph.py): starts from the retake partway down the schedule,
             the retake's edges as union control and the real first frame as the start guide.
 """
-import json, math, os, select, shutil, subprocess, time
+import hashlib, json, math, os, select, shutil, subprocess, time
 from pathlib import Path
 
 import cv2
@@ -69,6 +69,34 @@ def build_paths(td, state, n=81):
     return dict(seconds=secs, frames=fs, video=video, K=K, W=W, H=H, cond=cond, targ=targ, zoom=zoom, retake_zoom=retake_zoom, post_zoom=post_zoom,
                 metres_per_unit=m,
                 info=f"travel {np.linalg.norm(targ[-1, :3, 3]):.2f} m{lens}, first key {d_eye:.2f} m / {d_rot:.1f} deg off the source camera")
+
+
+RENDER_FIELDS = ("frames", "K", "W", "H", "video", "cond", "targ", "retake_zoom", "seconds", "metres_per_unit")
+MEMO_VERSION = 1   # raise when the Retake or Photoreal graphs, models or defaults change: old results stop matching
+KEEP_PHOTOREAL = 4   # saved Photoreal results per retake (about 450 MB each)
+
+
+def _files_fingerprint(train_dir, video):
+    """Size and modification time of the source video and every capture file (not our own retake jobs or camera paths): new footage or a
+    rebuilt capture at the same paths gives a new key."""
+    td = Path(train_dir); out = []
+    for f in [Path(video)] + sorted(p for p in td.rglob("*") if p.is_file()):
+        rel = f.relative_to(td).parts if td in f.parents else ()
+        if rel and (rel[0].startswith("retake_") or rel[0].startswith("camera_director_")):
+            continue
+        try:
+            st = f.stat(); out.append((str(f), st.st_size, int(st.st_mtime)))
+        except OSError:
+            pass
+    return out
+
+
+def _memo(*parts):
+    """A key for a render: identical keys mean identical frames, so the earlier result is returned instead of rendering again."""
+    h = hashlib.sha1()
+    for p in parts:
+        h.update((p.tobytes() if isinstance(p, np.ndarray) else json.dumps(p, sort_keys=True, default=str).encode()) + b"|")
+    return h.hexdigest()
 
 
 def _first_frame(video, out, w, h):
@@ -134,12 +162,30 @@ class Sam3dbxRetake:
         short, long_ = SIZES[resolution]
         z = build_paths(train_dir, state)
         w, h = (short, long_) if z["H"] >= z["W"] else (long_, short)
+        # the same render as an earlier run (only Camera settings changed: aperture, focus, look, a lens inside the widest one): reuse it
+        memo = _memo(MEMO_VERSION, str(Path(train_dir).resolve()), _files_fingerprint(train_dir, z["video"]),
+                     *[np.asarray(z[k]) if isinstance(z[k], np.ndarray) else z[k] for k in RENDER_FIELDS], resolution, steps, seed, prompt.strip(), cfg)
+        for jf in sorted(Path(train_dir).glob("retake_*/job.json"), reverse=True):
+            try:
+                old = json.loads(jf.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if old.get("memo") == memo and old.get("done") and Path(old["out"]).is_file():
+                print(f"[Reshoot 4D] Retake: the move renders the same as {jf.parent.name}, reusing its video", flush=True)
+                # a new job for this move (its own path.npz: the current lens crop and keys) that points at the earlier video
+                job_dir = Path(train_dir) / f"retake_{time.strftime('%Y%m%d-%H%M%S')}"; job_dir.mkdir(parents=True, exist_ok=True)
+                np.savez(job_dir / "path.npz", **{k: v for k, v in z.items() if k != "info"})
+                j = dict(old, npz=str(job_dir / "path.npz"), info=z["info"], reused_from=str(jf.parent))
+                (job_dir / "job.json").write_text(json.dumps(j, indent=1))
+                fr = _prep_ltx(old["out"], old["tag"], old["fps"])
+                frames = torch.from_numpy(np.stack([cv2.cvtColor(f, cv2.COLOR_BGR2RGB) for f in fr])).float() / 255.0
+                return (frames, str(job_dir / "job.json"), old["fps"])
         job_dir = Path(train_dir) / f"retake_{time.strftime('%Y%m%d-%H%M%S')}"; job_dir.mkdir(parents=True)
         np.savez(job_dir / "path.npz", **{k: v for k, v in z.items() if k != "info"})
         tag = f"rt_{Path(train_dir).parent.name}_{job_dir.name}"[:80]
         f0 = f"{tag}_f0.png"; _first_frame(z["video"], Path(folder_paths.get_input_directory()) / f0, w, h)
         job = {"npz": str(job_dir / "path.npz"), "out": str(job_dir / "retake.mp4"), "width": w, "height": h, "steps": steps, "seed": seed,
-               "cfg": cfg, "fps": len(z["frames"]) / z["seconds"], "frames": len(z["frames"]), "tag": tag, "first_frame": f0, "info": z["info"]}
+               "cfg": cfg, "fps": len(z["frames"]) / z["seconds"], "frames": len(z["frames"]), "tag": tag, "first_frame": f0, "info": z["info"], "memo": memo}
         (job_dir / "job.json").write_text(json.dumps(job, indent=1))
         P = f"{unique_id}.rt."; g = {}
         if prompt.strip():
@@ -203,6 +249,7 @@ class Sam3dbxRetakeRun:
             raise RuntimeError(f"ReDirector failed (exit {code}). Full log: {log}\n" + "\n".join(tail))
         fr = _prep_ltx(j["out"], j["tag"], j["fps"])
         frames = torch.from_numpy(np.stack([cv2.cvtColor(f, cv2.COLOR_BGR2RGB) for f in fr])).float() / 255.0
+        j["done"] = True; jp.write_text(json.dumps(j, indent=1))   # finished: a later identical move can reuse it
         return (frames, str(jp))
 
 
@@ -234,10 +281,18 @@ class Sam3dbxRetakePhotoreal:
     def run(self, retake, seed, start_strength, control_strength, control_lora_strength, first_frame_strength, detailer, pass_type="crossview",
             crossview_start=0.7, unique_id=None):
         j = json.loads(Path(retake).read_text()); fps = float(j["fps"]); LW, LH = _ltx_size(j["width"], j["height"])
+        # the same retake and settings as an earlier run: return its frames (saved by the store node at the end of the pass)
+        memo = _memo(MEMO_VERSION, j.get("memo") or str(retake), seed, start_strength, control_strength, control_lora_strength, first_frame_strength,
+                     detailer, pass_type, crossview_start)
+        home = Path(j.get("reused_from") or Path(retake).parent)   # results live with the job that rendered the video
+        store = home / f"photoreal_{memo[:16]}.npy"
+        if store.is_file():
+            print(f"[Reshoot 4D] Photoreal Pass: same retake and settings as before, reusing {store.name}", flush=True)
+            return (torch.from_numpy(np.load(store)).float() / 255.0, fps)
         if pass_type == "crossview":
             api, dec, info = CV.build(j, LW, LH, fps, seed, crossview_start, detailer)
             print(f"[Reshoot 4D] CrossView: pivot {info['pivot_z']:.2f} m, hfov {info['hfov']:.1f} deg, {len(info['keys'])} keys", flush=True)
-            return self._expand(api, dec, fps, unique_id)
+            return self._expand(api, dec, fps, unique_id, store)
         spec = {"prompt": j["prompt"] + " Sharp natural detail.", "video": {"seconds": (j["frames"] - 1) / fps + 1e-3, "fps": fps, "width": LW, "height": LH, "seed": seed},
                 "source": {"video": j["tag"] + ".mp4", "strength": start_strength},
                 "control": {"video": j["tag"] + "_canny.mp4", "type": "precomputed", "strength": control_strength, "lora_strength": control_lora_strength},
@@ -246,18 +301,42 @@ class Sam3dbxRetakePhotoreal:
         if not detailer:
             spec["detail"] = {"lora": None}
         api, dec = sg.build(spec)
-        return self._expand(api, dec, fps, unique_id)
+        return self._expand(api, dec, fps, unique_id, store)
 
     @staticmethod
-    def _expand(api, dec, fps, unique_id):
+    def _expand(api, dec, fps, unique_id, store):
         P = f"{unique_id}.rp."; g = {}
         for nid, n in api.items():
             g[P + nid] = {"class_type": n["class_type"], "inputs": {k: ([P + v[0], v[1]] if isinstance(v, list) and len(v) == 2 and isinstance(v[0], str) and v[0] in api else v)
                                                                       for k, v in n["inputs"].items()}}
-        return {"result": ([P + dec, 0], fps), "expand": g}
+        g[P + "store"] = {"class_type": "Sam3dbxStoreFrames", "inputs": {"images": [P + dec, 0], "path": str(store)}}
+        return {"result": ([P + "store", 0], fps), "expand": g}
+
+
+class Sam3dbxStoreFrames:
+    """Saves the Photoreal Pass frames beside the retake so an identical later run can reuse them (added by Photoreal Pass)."""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"images": ("IMAGE",), "path": ("STRING", {"forceInput": True})}}
+    RETURN_TYPES = ("IMAGE",); RETURN_NAMES = ("frames",)
+    FUNCTION = "run"; CATEGORY = CAT + "/Advanced"
+
+    def run(self, images, path):
+        q = (images.clamp(0, 1) * 255 + 0.5).byte()
+        dst = Path(path); tmp = dst.with_name(f"{dst.stem}.{os.getpid()}.{time.time_ns()}.tmp.npy")
+        try:   # a failed save only loses the reuse, never the run
+            np.save(tmp, q.numpy()); tmp.replace(dst)
+            for old in sorted(dst.parent.glob("photoreal_*.npy"), key=lambda f: f.stat().st_mtime)[:-KEEP_PHOTOREAL]:
+                old.unlink(missing_ok=True)
+        except OSError as e:
+            print(f"[Reshoot 4D] Photoreal Pass: could not save frames for reuse ({e})", flush=True)
+            tmp.unlink(missing_ok=True)
+        return (q.float() / 255.0,)   # the same 8-bit frames a later reuse returns
 
 
 NODE_CLASS_MAPPINGS = {"Sam3dbxRetake": Sam3dbxRetake, "Sam3dbxRetakeRun": Sam3dbxRetakeRun, "Sam3dbxRetakePhotoreal": Sam3dbxRetakePhotoreal,
+                       "Sam3dbxStoreFrames": Sam3dbxStoreFrames,
                        "Sam3dbxLensZoom": CV.LensZoom}
 NODE_DISPLAY_NAME_MAPPINGS = {"Sam3dbxRetake": "Reshoot 4D: Retake", "Sam3dbxRetakeRun": "Reshoot 4D: Retake (run)",
-                              "Sam3dbxRetakePhotoreal": "Reshoot 4D: Photoreal Pass", "Sam3dbxLensZoom": "Reshoot 4D: Lens Zoom"}
+                              "Sam3dbxRetakePhotoreal": "Reshoot 4D: Photoreal Pass", "Sam3dbxLensZoom": "Reshoot 4D: Lens Zoom",
+                              "Sam3dbxStoreFrames": "Reshoot 4D: Store frames (internal)"}

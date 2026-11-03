@@ -1,7 +1,7 @@
 [project]
 name = "reshoot-4d"
 description = "Reshoot any video in 4D. A 4D camera editor inside ComfyUI, running locally on open weights."
-version = "0.1.0"
+version = "0.1.1"
 license = { file = "LICENSE" }
 
 [project.urls]

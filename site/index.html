@@ -16,7 +16,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="masthead"><div class="wrap header-inner">
 <a class="brand" href="#" aria-label="Reshoot 4D home"><img src="media/brand/reshoot4d_wordmark_t.svg" width="1728" height="172" alt="Reshoot 4D"></a>
-<nav aria-label="Main"><a href="#workflow">How it works</a><a href="#editor">Editor</a><a href="#results">Results</a><a href="#install">Install</a><a class="nav-cta nav-try" href="demo/">Try the editor</a><a class="nav-cta" id="github-link" href="https://github.com/itsmetamike/reshoot-4d">GitHub</a></nav>
+<nav aria-label="Main"><a href="#new">What's new</a><a href="#workflow">How it works</a><a href="#editor">Editor</a><a href="#results">Results</a><a href="#install">Install</a><a class="nav-cta nav-try" href="demo/">Try the editor</a><a class="nav-cta" id="github-link" href="https://github.com/itsmetamike/reshoot-4d">GitHub</a></nav>
 </div></header>
 <main id="main">
 <section class="hero" aria-label="Reshoot 4D">
@@ -28,6 +28,19 @@
 </div>
 <div class="actions"><a class="button" id="try-editor" href="demo/">Try the editor</a><a class="button secondary" href="#workflow">How it works</a><a class="button secondary" href="#install">Install</a><button id="motion-toggle" type="button" aria-pressed="false">Pause</button></div>
 </div>
+</section>
+
+<section id="new" class="wrap section whats-new" aria-labelledby="new-title">
+<h2 id="new-title">What's new<span class="ver">0.1.0</span></h2>
+<div class="stack">
+<figure><div class="video-shell"><video autoplay muted loop playsinline preload="metadata" poster="media/new_0_1_0.jpg" aria-label="Reshoot 4D 0.1.0: camera settings on every key, camera import, dolly zoom and lens looks, each beside its source video"><source src="media/new_0_1_0.mp4" type="video/mp4"></video></div><figcaption>Each new feature beside its source video. Footage from Pexels.</figcaption></figure>
+</div>
+<ul class="feature-grid" aria-label="New in 0.1.0">
+<li><b>Camera settings on every key</b><span><em class="hl">Aperture</em>, <em class="hl">focus</em>, <em class="hl">vignette</em> and <em class="hl">grain</em> on each key, for rack focus and aperture pulls. Alt+click in the camera view to focus on anything.</span></li>
+<li><b>Bring your own camera</b><span>Import an animated camera from <em class="hl">.fbx</em>, <em class="hl">.abc</em> or <em class="hl">.usd</em>. It starts on the source camera, lens and focus included, and you can export your moves to the same formats.</span></li>
+<li><b>Zoom through the lens</b><span><em class="hl">Zoom keys</em> change the lens after the render, so <em class="hl">dolly zooms</em> work: the camera pulls back as the lens zooms in, and the background swells.</span></li>
+<li><b>Looks and Finish</b><span><em class="hl">Distortion</em>, <em class="hl">chromatic aberration</em>, <em class="hl">bloom</em>, <em class="hl">halation</em> and <em class="hl">anamorphic bokeh</em> per shot. Finish to <em class="hl">24 to 60 fps</em> with <em class="hl">motion blur</em>, up to <em class="hl">4K</em>.</span></li>
+</ul>
 </section>
 
 <section id="workflow" class="wrap section" aria-labelledby="workflow-title">
@@ -96,6 +109,7 @@
 <li>Set up Capture and its models on a CUDA machine.</li>
 <li>Add Reshoot 4D to <code>ComfyUI/custom_nodes/</code>.</li>
 <li>Install ReDirector and LTX 2.3, then restart ComfyUI.</li>
+<li>Optional: Blender for camera files, ComfyUI-Frame-Interpolation for frame rates and motion blur.</li>
 </ol>
 <p class="links"><a href="../docs/INSTALL.md" data-repo-path="/blob/main/docs/INSTALL.md">Installation guide →</a><a href="../docs/MODELS_AND_LICENSES.md" data-repo-path="/blob/main/docs/MODELS_AND_LICENSES.md">Models and licences →</a><a href="../docs/CREDITS.md" data-repo-path="/blob/main/docs/CREDITS.md">Credits →</a></p>
 <p class="fine">Copyright (C) 2026 itsmetamike. AGPL-3.0. Models keep their own licences; see the model guide. Built with assistance from Claude Code and Codex.</p>

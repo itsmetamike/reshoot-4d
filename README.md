@@ -51,9 +51,9 @@ Load [the Reshoot 4D workflow](workflows/Reshoot%204D.json) and follow the [Work
 
 ![Source video, the imported .fbx camera and the final reshoot](docs/media/readme_new_camera_import.gif)
 
-**Zoom through the lens.** A dolly zoom: the camera pulls back while the lens zooms in, so he holds his size while the skyline grows.
+**Zoom through the lens.** A dolly zoom: the camera pulls back while the lens zooms in to 100 mm, and the skyline swells behind him.
 
-![Source video and a dolly-zoom reshoot, with guide lines at his head and feet](docs/media/readme_new_dolly_zoom.gif)
+![Source video and a dolly-zoom reshoot to 100 mm](docs/media/readme_new_dolly_zoom.gif)
 
 ### Reshoots
 

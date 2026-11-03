@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- **Camera-only edits reuse the render.** Changing aperture, focus, vignette, grain, lens character, shutter or a lens inside the move's widest one no longer re-renders: Retake and the Photoreal Pass keep their results and return them when the move renders the same, so only Camera FX and Finish do new work.
+- **Virtual Camera:** Minimise is off when a capture can't open (it used to throw an error).
+- **Docs:** imported cameras' focus is in metres and Camera FX renders it.
+
 ## 0.1.0
 
 First release.

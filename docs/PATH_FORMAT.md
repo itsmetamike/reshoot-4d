@@ -52,7 +52,7 @@ Import in the Virtual Camera also takes camera files. Blender (headless, `blende
 
 The move is kept relative to the camera's own first frame and starts on this clip's real camera, fixed in the background scene (no shared scene or round trip needed). Translation uses the capture's metric scale (her height = 1.7 m, the same scale Retake uses). Roll carries over. Focal length changes become lens changes relative to the real lens. Keys use spline interpolation, one per frame, up to 240.
 
-Focus distance and f-stop are stored on each key (`focus` in capture units, `fstop`) when the file's camera has depth of field on. Nothing renders them yet.
+When the file's camera has depth of field on, its focus distance (`focus`, in metres) and f-stop (`fstop`) land on each key, and Camera FX renders them as depth of field.
 
 Known limits: Blender's Alembic importer does not read animated focal length (the pose is fine). Files need a real camera solve on the capture.
 
