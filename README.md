@@ -2,6 +2,8 @@
 
 **Reshoot any video in 4D.**
 
+[![swm cloud](https://img.shields.io/badge/swm%20cloud-Launch%20Pre--Loaded%20Workspace-0A66C2)](https://cloud.swmgpu.com/w/samofvaani/reangle-reshoot-4d-camera-studio)
+
 - **Runs locally on open weights.** No API keys, no cloud services, no partner nodes.
 - **Every step is a ComfyUI node.** The 4D camera editor is the Virtual Camera node's own panel.
 - **LTX 2.3 renders every final frame.**
@@ -99,7 +101,7 @@ See the [Editor guide](docs/EDITOR.md).
 
 ## Install
 
-Tested on Ubuntu 24.04 with one NVIDIA RTX 3090 (24 GB). A shot takes about 30 minutes from camera move to final video.
+Tested on Ubuntu 24.04 with one NVIDIA RTX 3090 (24 GB). A shot takes about 30 minutes from camera move to final video. No local 24 GB+ GPU? Launch pre-loaded on [**swm cloud**](https://cloud.swmgpu.com/w/samofvaani/reangle-reshoot-4d-camera-studio) with `reshoot-4d`, `ComfyUI-CrossViewWarp`, and all ~41.9 GB of weights installed.
 
 ```bash
 cd ComfyUI/custom_nodes
